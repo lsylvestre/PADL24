@@ -42,6 +42,7 @@
        "lsr", LSR;
        "asr", ASR;
        "resize_int", RESIZE_INT;
+       "tuple_of_int",TUPLE_OF_INT;
        "type", TYPE;
      ]
 
@@ -75,7 +76,8 @@ rule token = parse
 | "|"                 { PIPE }
 | "||"                { PIPE_PIPE }
 | "|,|"               { PIPE_COMMA_PIPE }
-| (['0'-'9']+) as n  { INT_LIT (int_of_string n) }
+| ['0'-'9']+ as s
+| ('0'('b'|'x')['0'-'9']['0'-'9''_']*) as s { INT_LIT (int_of_string s) }
 | "+"                 { PLUS }
 | "-"                 { MINUS }
 | "*"                 { TIMES }

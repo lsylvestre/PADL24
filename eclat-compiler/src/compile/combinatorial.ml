@@ -7,6 +7,7 @@ let op_combinatorial (op:op) : bool =
 	| Runtime(p) ->
 	    Operators.combinatorial p
 	| GetTuple _ -> true
+	| TyConstr _ -> true
 	| _ -> true
 
 
@@ -17,8 +18,8 @@ let const_combinatorial (c:c) : bool =
 
 let rec combinatorial (e:e) : bool =
   match e with
-	| E_deco(e,loc) ->
-      combinatorial e
+	| E_deco(e1,loc) ->
+      combinatorial e1
 	| E_var _ ->
 	    true
 	| E_const c -> 
@@ -28,12 +29,14 @@ let rec combinatorial (e:e) : bool =
 	| E_match(e1,hs,e_els) ->
       (* hard to defined as a combinatorial function being generic in the number of cases *)
       false
-	| E_app(E_const(Op op),e2) ->
-	    op_combinatorial op && combinatorial e2
 	| E_app(e1,e2) ->
-	    (* as we can't know locally whether [e1] is combinatorial, 
+      (match un_deco e1 with
+      | E_const(Op op) -> 
+          op_combinatorial op && combinatorial e2
+      | _ -> 
+         (* as we can't know locally whether [e1] is combinatorial, 
 	       we return false *)
-	    false
+	       false)
 	| E_letIn(_,e1,e2) ->
 	    combinatorial e1 && combinatorial e2
 	| E_tuple es ->

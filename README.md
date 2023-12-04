@@ -1,19 +1,22 @@
 ## Hardware implementation of OCaml using a synchronous functional language
 
+**Sylvestre et al., PADL 24 paper**
+
 This artefact, presented in the paper, includes:
-- a compiler for the Eclat language (`eclat-compiler/`) based on an existing work by `Sylvestre et al.: Work-in-Progress: mixing computation and interaction on FPGA. In: 2023 International Conference on Embedded Software (EMSOFT ’23). pp. 5–6. IEEE (2023)` for a smaller language;
+- a compiler for the Eclat language
 - an implementation of the OCaml virtual machine (VM) in Eclat (`ocaml-vm/`);
-- benchmarks from the paper (`benchs/`), with also hardware-accelerated 
+- the benchmarks from the paper (`benchs/`), with also hardware-accelerated 
   versions (e.g., `benchs/gcd/README.md`) and instructions to reproduce;
-- Eclat examples (listings) from the paper, with execution traces (e.g. `examples/counter.png`) and instructions to reproduce;
-- a folder `target` in which the generated code is automatically written,
-  including a main component `main.vhdl`,
-  a testbench `tb_main.vhdl` (for simulation)
-  and an interface `top.vhdl` (for synthesis);
-  Eclat instantaneous primitives are defined in `target/runtime.vhdl`
+- Eclat examples (listings) from the paper, with execution traces (e.g. `examples/sum.png`) and instructions to reproduce;
+- a folder `target` in which is generated
+  -- a main component `main.vhdl`,
+  -- a testbench `tb_main.vhdl` (for simulation)
+  -- and an interface `synth/intel/top.vhdl` (for synthesis);
+  
+Eclat instantaneous primitives are defined in `target/runtime.vhdl`
 
 
-The paper compares our VM implementation with an other implementation of the OCaml VM, called OMicroB ([https://github.com/stevenvar/OMicroB](https://github.com/stevenvar/OMicroB)) and a port of OMicroB on FPGA ([https://github.com/jserot/O2B](https://github.com/jserot/O2B))
+The paper compares our VM implementation (the `ocaml/vm`folder) with an other implementation of the OCaml VM, called OMicroB ([https://github.com/stevenvar/OMicroB](https://github.com/stevenvar/OMicroB)) and a port of OMicroB on FPGA ([https://github.com/jserot/O2B](https://github.com/jserot/O2B))
 
 -------------------
 
@@ -25,6 +28,7 @@ The VM includes :
 - the primitives of the bytecode interpreter (`ocaml-vm/runtime.ecl`);
 - external primitives (`ocaml-vm/prims.ecl`);
 - a bytecode interpreter (`ocaml-vm/vm.ecl`);
+- some definitions for physical I/Os (`ocaml-vm/IOs.ecl`);
 - a reactive program executing the VM internally (`ocaml-vm/main.ecl`).
 
 
@@ -58,7 +62,7 @@ pc:20|acc:89<int>|sp:1010|env:4000<ptr>
 pc:19|acc:89<int>|sp:1006|env:4000<ptr> 
 pc:20|acc:144<int>|sp:1005|env:4000<ptr> 
 pc:30|acc:144<int>|sp:1001|env:1<int> 
-======> 144 
+======> 144
 pc:32|acc:1<int>|sp:1001|env:1<int> 
 pc:34|acc:1<int>|sp:1000|env:1<int> 
 STOP : cycle:16427 
@@ -70,3 +74,23 @@ pc:34|acc:1<int>|sp:1000|env:1<int>
 ^C
 $
 ```
+
+Synthesis (on DE-10 lite FPGA board)
+-------
+
+```
+$ make FLAGS="-noprint -noassert" SRC=ocaml-vm/tests/blink.ml
+$ cd <QUARTUS-PATH>/bin
+$ quartus
+ 
+  - Processing > Start Compilation
+
+  - Tools > Programmer > Start
+
+  If USB-Blaster is not found:
+  $ killall jtagd
+  $ jtagd
+  $ jtagconfig
+```
+
+

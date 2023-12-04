@@ -530,11 +530,11 @@ let typing_with_argument ({statics;ds;main} : pi) (arg_list : e list) : ty * ty 
   in
 
   let env = List.fold_left (fun env (x,e) ->
-                               if not (evaluated e || is_variable e) then begin
+                               if not (evaluated e || Combinatorial.combinatorial e) then begin
                                 let open Prelude.Errors in
                                   error ~loc:(loc_of e) (fun fmt ->
                                   Format.fprintf fmt
-                                    "@[<v>This expression should be a value or a variable.@]")
+                                    "@[<v>This expression should be a value or be combinational.@]")
                                end;
                                let ty,_ = typing ~env e in
                                let sc = generalize (SMap.bindings env) ty in

@@ -4,19 +4,10 @@ type others = bool * bool ;;
 
 type state = (short * value * short * (value * char * short) * others) ;;
 
-(* let caml_update_led(b,env) =
-  let (finished,led) = env in
-  (finished,b) ;;*)
+let caml_set_finish (_,led) =
+  (true,led) ;;
 
-let caml_set_finish (_,v) =
-  (true,v) ;;
-
-let others_default = (false,false) ;;
-
-(*
-let led_on(arg,env) = 
-  let env2 = caml_update_led(true,env) in
-  (arg,env2) ;;*)
+let others_default = (false, false) ;;
 
 
 (* ********************************************** *)
@@ -26,10 +17,11 @@ let interp (run) =
     let (pc, acc, sp, other_regs, others) = s in
     let (env, extra_args, trap_sp) = other_regs in
     
-    print_string "pc:";   print_int pc;  (* print_string "(opcode:";   print_int (code[pc]); print_string ")"; *)
+    print_string "pc:";   print_int pc;  
+    (* print_string "(opcode:";   print_int (code[pc]); print_string ")"; *)
     print_string "|acc:"; print_val acc;
     print_string "|sp:";  print_int sp;
-   print_string "|env:";  print_val env;
+    print_string "|env:";  print_val env;
     (*print_string "stack:"; print_stack(sp);*)
     print_newline ();
 
@@ -448,16 +440,14 @@ let interp (run) =
      
       | 93 (* C-CALL1 *) -> let p = argument1 in
                             let sp = push_stack(env,sp) in
-                            let envi = () in
-                            let (acc,envo) = external_call (p,caml_prepare_args1(acc),envi) in
+                            let (acc,others) = external_call (p,caml_prepare_args1(acc),others) in
                             let (v,sp) = pop_stack(sp) in
                             let next_env = v in 
                             (pc_plus_2,acc,sp, (next_env, extra_args, trap_sp), others)
       | 94 (* C-CALL2 *) -> let p = argument1 in
                             let (a,sp) = pop_stack(sp) in
                             let sp = push_stack(env,sp) in
-                            let envi = () in
-                            let (acc,envo) = external_call (p,caml_prepare_args2(acc,a),envi) in
+                            let (acc,others) = external_call (p,caml_prepare_args2(acc,a),others) in
                             let (v,sp) = pop_stack(sp) in
                             let next_env = v in 
                             (pc_plus_2,acc,sp, (next_env, extra_args, trap_sp), others)
@@ -465,8 +455,7 @@ let interp (run) =
                             let (a1,sp) = pop_stack(sp) in
                             let (a2,sp) = pop_stack(sp) in
                             let sp = push_stack(env,sp) in
-                            let envi = () in
-                            let (acc,envo) = external_call (p,caml_prepare_args3(acc,a1,a2),envi) in
+                            let (acc,others) = external_call (p,caml_prepare_args3(acc,a1,a2),others) in
                             let (v,sp) = pop_stack(sp) in
                             let next_env = v in 
                             (pc_plus_2,acc,sp, (next_env, extra_args, trap_sp), others)
@@ -475,8 +464,7 @@ let interp (run) =
                             let (a2,sp) = pop_stack(sp) in
                             let (a3,sp) = pop_stack(sp) in
                             let sp = push_stack(env,sp) in
-                            let envi = () in
-                            let (acc,envo) = external_call (p,caml_prepare_args4(acc,a1,a2,a3),envi) in
+                            let (acc,others) = external_call (p,caml_prepare_args4(acc,a1,a2,a3),others) in
                             let (v,sp) = pop_stack(sp) in
                             let next_env = v in 
                             (pc_plus_2,acc,sp, (next_env, extra_args, trap_sp), others)
@@ -486,8 +474,7 @@ let interp (run) =
                             let (a3,sp) = pop_stack(sp) in
                             let (a4,sp) = pop_stack(sp) in
                             let sp = push_stack(env,sp) in
-                            let envi = () in
-                            let (acc,envo) = external_call (p,caml_prepare_args5(acc,a1,a2,a3,a4),envi) in
+                            let (acc,others) = external_call (p,caml_prepare_args5(acc,a1,a2,a3,a4),others) in
                             let (v,sp) = pop_stack(sp) in
                             let next_env = v in 
                             (pc_plus_2,acc,sp, (next_env, extra_args, trap_sp), others)
@@ -635,25 +622,17 @@ let load_bytecode (reset) =
   let ((),rdy) = exec config1 () default () in 
   away(rdy,reset) ;;
 
-let ocaml_vm (cy,default_output) =
-  let step (stop,busy,init_done,s) =
+let ocaml_vm (button) =
+  let step (_,_,init_done,led) =
     if not(init_done) 
     then 
       let rdy = load_bytecode(false) in 
-      (false,true,rdy,s)
+      (false,true,rdy,led)
     else 
       let (s,rdy) = interp(init_done) in
       let (pc,acc,sp,(env, extra_args, trap_sp),(finished,led)) = s in
-      let o = if finished then (
-        (if print_cy then 
-           (print_string "cycle:"; 
-            print_int cy; 
-            print_newline ()) else ());
-        (false,true,false,false,false,false,false,false)
-       )
-       else (true,true,true,true,true,true,true,false)
-      in (finished,rdy,init_done,o)
+      (finished,rdy,init_done,led)
   in
-  let (stop,rdy,_,o) = reg step last (false,false,false,default_output) in 
+  let (stop,rdy,_,o) = reg step last (false,false,false,false) in 
   (stop,not(rdy),o)
 ;;

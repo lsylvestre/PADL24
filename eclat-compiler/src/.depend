@@ -272,12 +272,14 @@ src/frontend/fix_int_lit_size.cmo :
 src/frontend/fix_int_lit_size.cmx :
 src/frontend/frontend.cmo : \
     src/prelude.cmo \
+    src/syntax/pattern.cmo \
     src/frontend/parser.cmi \
     src/frontend/current_filename.cmo \
     src/syntax/ast_mk.cmo \
     src/syntax/ast.cmo
 src/frontend/frontend.cmx : \
     src/prelude.cmx \
+    src/syntax/pattern.cmx \
     src/frontend/parser.cmi \
     src/frontend/current_filename.cmx \
     src/syntax/ast_mk.cmx \
@@ -477,12 +479,14 @@ src/typing/typing.cmo : \
     src/typing/types.cmo \
     src/prelude.cmo \
     src/operators.cmo \
+    src/compile/combinatorial.cmo \
     src/syntax/ast_pprint.cmo \
     src/syntax/ast.cmo
 src/typing/typing.cmx : \
     src/typing/types.cmx \
     src/prelude.cmx \
     src/operators.cmx \
+    src/compile/combinatorial.cmx \
     src/syntax/ast_pprint.cmx \
     src/syntax/ast.cmx
 src/frontend/parser.cmo : \

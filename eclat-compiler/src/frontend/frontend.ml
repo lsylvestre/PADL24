@@ -67,7 +67,13 @@ let frontend ~(inputs : string list) repl ?(when_repl=(fun _ -> ())) ?(relax=fal
     List.map (fun s -> Parser.exp_eof Lexer.token (Lexing.from_string s))
   in
   let entry_point = if relax then (E_var main) else (Ast.ty_annot ~ty:(Ast_mk.fresh_node ()) (E_var main)) in
-  let ds = List.map (function ((P_var x,e),loc) -> (x,e) | _ -> assert false) ds in
+  let ds = List.concat @@
+           List.map (function ((p,e),loc) -> 
+                       try Pattern.bindings p e |> SMap.bindings with 
+                       | Pattern.CannotMatch _ ->
+                           error ~loc (fun fmt ->
+                                  Format.fprintf fmt
+                                    "@[<v>This global pattern does not match statically the right-hand side.@]")) ds in
   ({statics=gs_from_files;ds;main=entry_point}, values_list)
 
 

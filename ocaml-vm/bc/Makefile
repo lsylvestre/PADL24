@@ -9,6 +9,7 @@ all:	tmp
                      ../stdlib/array.ml \
                      ../stdlib/string.ml \
 	                 ../stdlib/camlinternalOO.ml \
+	                 ../stdlib/platform.ml \
 	                 $(SRC) $(OPT)
 	ocamlclean a.out
 	dune exec bcprepare a.out

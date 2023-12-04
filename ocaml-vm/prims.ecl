@@ -1,3 +1,5 @@
+(* ********************************************** *)
+
 let caml_prepare_args1(v) =
   (v,(val_unit,(val_unit,(val_unit,val_unit)))) ;;
 
@@ -22,8 +24,13 @@ let caml_print_int ((v1,_),st) =
   print_newline ();
   (val_unit,st) ;;
 
-let caml_identity(arg,st) = (arg,st) ;;
+let caml_led_off (_,(finished,_)) =
+  (val_unit,(finished,true)) ;;
 
+let caml_led_on (_,(finished,_)) =
+  (val_unit,(finished,false)) ;;
+
+let caml_identity(arg,st) = (arg,st) ;;
 
 let caml_fresh_oo_id(_,st) =
   let gensym n = n + 1 in

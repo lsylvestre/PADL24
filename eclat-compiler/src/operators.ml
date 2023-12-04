@@ -11,6 +11,7 @@ type op =
   | Land | Lor | Lxor | Lsl | Lsr | Asr
 
   | Resize_int of int
+  | Tuple_of_int of int
   | String_length
 
   (* for simulation only *)
@@ -44,6 +45,9 @@ let ty_op op =
   | Resize_int k ->
       let sz = unknown() in
       (tint sz) ==> tint (T_size k)
+  | Tuple_of_int k ->
+      let t = T_tuple (List.init k (fun _ -> tbool)) in
+      tint (T_size k) ==> t
   | Print ->
       (unknown()) ==> tunit
   | Print_string ->
@@ -58,7 +62,7 @@ let ty_op op =
       (* enforce result to be a 16-bit integer *)
       let tz_int = T_size 16 in
       (T_string(unknown ())) ==> (tint tz_int)
-  
+
 (** pretty printer for operators *)
 let pp_op fmt (op:op) : unit =
   Format.fprintf fmt "%s" @@
@@ -86,6 +90,7 @@ let pp_op fmt (op:op) : unit =
   | Lsr -> "lsr"
   | Asr -> "asr"
   | Resize_int k -> "resize_int<" ^ string_of_int k ^ ">"
+  | Tuple_of_int k -> "tuple_of_int<" ^ string_of_int k ^ ">"
   | Print -> "print"
   | Print_string -> "print_string"
   | Print_int -> "print_int"
@@ -101,7 +106,7 @@ let gen_op fmt (op:op) pp a : unit =
   let funcall fmt s = fprintf fmt "%s(%a)" s pp a in
   let procall fmt s = fprintf fmt "%s(%a)" s pp a in
   let skip_when b fmt f a =
-    if b then fprintf fmt "eclat_skip(eclat_unit)" 
+    if b then fprintf fmt "eclat_skip(eclat_unit)"
     else f fmt a in
   match op with
   | Add -> funcall fmt "eclat_add"
@@ -126,9 +131,11 @@ let gen_op fmt (op:op) pp a : unit =
   | Lsl -> funcall fmt "eclat_lsl"
   | Lsr -> funcall fmt "eclat_lsr"
   | Asr -> funcall fmt "eclat_asr"
-  | Resize_int k -> 
-      fprintf fmt "eclat_resize(%a,%d)" pp a k 
-  | Print -> 
+  | Resize_int k ->
+      fprintf fmt "eclat_resize(%a,%d)" pp a k
+  | Tuple_of_int _ ->
+      pp fmt a
+  | Print ->
       skip_when !flag_no_print fmt procall "eclat_print"
   | Print_string ->
       skip_when !flag_no_print fmt procall "eclat_print_string"

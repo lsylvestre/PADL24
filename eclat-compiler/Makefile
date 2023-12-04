@@ -33,9 +33,9 @@ OBJS= src/prelude.cmo \
       src/syntax/ast_ensure_rec_naming.cmo \
       src/syntax/ast_undecorated.cmo \
       src/frontend/fix_int_lit_size.cmo \
+      src/compile/combinatorial.cmo \
       src/typing/typing.cmo \
       src/syntax/ast_mk.cmo \
-      src/compile/combinatorial.cmo \
       src/compile/encode_reg_exec.cmo \
       src/compile/middle_end/name_anonymus_functions.cmo \
       src/compile/middle_end/anf.cmo \

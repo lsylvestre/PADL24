@@ -23,7 +23,7 @@ CUSTOM_PATH=$(foreach f,$(CUSTOM),../$(f))$
 CLK=clk
 
 vm:	byte $(ECLAT_COMPILER)/eclat
-	(cd $(ECLAT_COMPILER); ./eclat $(FLAGS) \
+	(cd $(ECLAT_COMPILER); ./eclat -intel-max10 $(FLAGS) \
 	        $(VM_FROM_ECLAT_COMPILER)/mlvalue.ecl \
 	        $(VM_FROM_ECLAT_COMPILER)/ram.ecl \
 	        $(VM_FROM_ECLAT_COMPILER)/runtime.ecl \
@@ -32,7 +32,11 @@ vm:	byte $(ECLAT_COMPILER)/eclat
 	        $(VM_FROM_ECLAT_COMPILER)/prims.ecl $(CUSTOM_PATH) \
 			$(VM_FROM_ECLAT_COMPILER)/bytecode.ecl \
 			$(VM_FROM_ECLAT_COMPILER)/vm.ecl \
-			$(VM_FROM_ECLAT_COMPILER)/main.ecl -intel-max10)
+			$(VM_FROM_ECLAT_COMPILER)/IOs.ecl \
+			$(VM_FROM_ECLAT_COMPILER)/main.ecl)
+
+$(ECLAT_COMPILER)/eclat:
+	(cd $(ECLAT_COMPILER); make)
 
 simul:
 	(cd $(TARGET); make NS=$(NS))

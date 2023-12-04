@@ -24,7 +24,7 @@
 %token <bool> BOOL_LIT
 %token <int> INT_LIT
 %token PLUS MINUS TIMES LT LE GT GE NEQ NOT MOD DIV AMP_AMP OR
-%token XOR LAND LOR LXOR LSL LSR ASR RESIZE_INT
+%token XOR LAND LOR LXOR LSL LSR ASR RESIZE_INT TUPLE_OF_INT
 %token EOF
 %token SEMI_SEMI
 %token LEFT_ARROW RIGHT_ARROW
@@ -349,6 +349,7 @@ aexp_desc:
 | c=const { E_const c }
 
 | x=RESIZE_INT LT k=INT_LIT GT { E_const (Op(Runtime(Resize_int k))) }
+| x=TUPLE_OF_INT LT k=INT_LIT GT { E_const (Op(Runtime(Tuple_of_int k))) }
 | x=IDENT { match x with
             | "abs" -> E_const (Op(Runtime(Abs)))
             | "print" -> E_const (Op(Runtime(Print)))

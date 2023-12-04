@@ -7,6 +7,7 @@ type token =
   | VAR
   | TYPE
   | TVAR_IDENT of (string)
+  | TUPLE_OF_INT
   | TIMES
   | THEN
   | STRING_LIT of (string)

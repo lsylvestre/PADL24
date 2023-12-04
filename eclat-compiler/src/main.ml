@@ -6,7 +6,7 @@
 (* input files *)
 let inputs : string list ref = ref []
 
-let target = ref "../target" 
+let target = ref "../target"
 
 (* option configuration *)
 
@@ -22,7 +22,9 @@ let top_wrapper = ref ""
 let clock_top = ref "clk"
 
 let clock_top_intel_max10 = "MAX10_CLK1_50"
-let top_wrapper_intel_max10 = "SW:10,KEY:2|LEDR:10,HEX0:8,HEX1:8,HEX2:8,HEX3:8,HEX4:8,HEX5:8"
+
+let top_wrapper_intel_max10 =
+  "SW:10,KEY:2|LEDR:10,HEX5:8,HEX4:8,HEX3:8,HEX2:8,HEX1:8,HEX0:8"
 
 (* main configuration *)
 let () =
@@ -74,19 +76,19 @@ let () =
     ("-bus",     Arg.Set_int Interp.flag_bus_proba,
                 "[for -interp mode only] set the probability to wait a new\
                  \ clock tick during a bus transation");
-    
+
     ("-top",     Arg.Set_string top_wrapper,
                 "generate a top wrapper for the whole architecture");
-    
+
     ("-clk-top", Arg.Set_string clock_top,
                 "name of the top wrapper global clock");
-    
+
     ("-intel-max10", Arg.Unit (fun () ->
                                  Gen_vhdl.intel_ram_inference := true;
                                  clock_top := clock_top_intel_max10;
                                  top_wrapper := top_wrapper_intel_max10),
      "alias for: -clk-top "^clock_top_intel_max10^" -top "^top_wrapper_intel_max10);
-    
+
     ("-no-prop-linear", Arg.Clear Propagation.flag_propagate_combinational_linear,
                  "do not propagate linear combinational expression.");
     ]
@@ -119,10 +121,10 @@ let main () : unit =
     exit 0;
   end;
 
-  let pi = if Operators.(!Operators.flag_no_assert || !Operators.flag_no_print) 
+  let pi = if Operators.(!Operators.flag_no_assert || !Operators.flag_no_print)
            then Clean_simul.clean_pi
                   ~no_assert:!Operators.flag_no_assert
-                  ~no_print:!Operators.flag_no_print pi 
+                  ~no_print:!Operators.flag_no_print pi
            else pi in
 
   (** remove all decorations (locations) in the source program *)
@@ -161,7 +163,7 @@ let main () : unit =
   if !top_wrapper <> "" then
     Make_top.gen_wrapper ~argument
                          ~result
-                         ~clock:!clock_top 
+                         ~clock:!clock_top
                          ~dst:(!target^"/top.vhdl") !top_wrapper
 
 
