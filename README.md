@@ -8,10 +8,10 @@ This artefact, presented in the paper, includes:
 - the benchmarks from the paper (`benchs/`), with also hardware-accelerated 
   versions (e.g., `benchs/gcd/README.md`) and instructions to reproduce;
 - Eclat examples (listings) from the paper, with execution traces (e.g. `examples/sum.png`) and instructions to reproduce;
-- a folder `target` in which is generated
-  -- a main component `main.vhdl`,
-  -- a testbench `tb_main.vhdl` (for simulation)
-  -- and an interface `synth/intel/top.vhdl` (for synthesis);
+- a folder `target` in which are generated:
+  * a main component `main.vhdl`,
+  * a testbench `tb_main.vhdl` (for simulation)
+  * and an interface `synth/intel/top.vhdl` (for synthesis);
   
 Eclat instantaneous primitives are defined in `target/runtime.vhdl`
 
