@@ -23,7 +23,9 @@ CUSTOM_PATH=$(foreach f,$(CUSTOM),../$(f))$
 CLK=clk
 
 vm:	byte $(ECLAT_COMPILER)/eclat
-	(cd $(ECLAT_COMPILER); ./eclat -intel-max10 $(FLAGS) \
+	(cd $(ECLAT_COMPILER); ./eclat -intel-max10 \
+		     -arg "((true,true,true,true,true,true,true,true,true,true),(true,true))" \
+		    $(FLAGS) \
 	        $(VM_FROM_ECLAT_COMPILER)/mlvalue.ecl \
 	        $(VM_FROM_ECLAT_COMPILER)/ram.ecl \
 	        $(VM_FROM_ECLAT_COMPILER)/runtime.ecl \
