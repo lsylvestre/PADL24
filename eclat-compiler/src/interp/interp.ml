@@ -9,13 +9,13 @@ Random.self_init ();;
 
 type r = {
   mu : e SMap.t ;
-  static : c array SMap.t ;
+  statics : c array SMap.t ;
   heap : (l,c array) Hashtbl.t
 }
 
 let r_init = {
   mu = SMap.empty ;
-  static = SMap.empty ;
+  statics = SMap.empty ;
   heap = Hashtbl.create 10
 }
 
@@ -44,7 +44,7 @@ let error_cannot_be_reduced e =
 let set_buffer x e1 e2 r =
   match e1 with
   | E_const(Int(n,_)) ->
-      (match SMap.find_opt x r.static, e2 with
+      (match SMap.find_opt x r.statics, e2 with
       | Some a, E_const c ->
           a.(n) <- c; (* todo: avoid the side effect *)
           r
@@ -53,7 +53,7 @@ let set_buffer x e1 e2 r =
   | _ -> assert false (* ill typed *)
 
 let buffer_get x e r =
-  match SMap.find_opt x r.static, e with
+  match SMap.find_opt x r.statics, e with
   | Some a, E_const(Int (i,_)) ->
       check_bounds ~index:i ~size:(Array.length a);
       a.(i)
@@ -61,7 +61,7 @@ let buffer_get x e r =
 
 
 let buffer_length x r =
-  match SMap.find_opt x r.static with
+  match SMap.find_opt x r.statics with
   | Some a ->
       Int(Array.length a,Types.unknown())
   | None -> assert false (* ill typed *)
@@ -104,6 +104,7 @@ let app_const e e2 r =
       | TyConstr _, v -> v, r
       | _ -> error_cannot_be_reduced (E_app(e,e2))
     end
+  | Inj _ -> E_app(e,e2),r
   | (Unit|Bool _|Int _|String _|V_loc _|C_tuple _) ->
       error_cannot_be_reduced (E_app(e,e2))
   | External ext ->
@@ -161,16 +162,28 @@ let rec red (e,r) =
      | (e',r') ->
         (* [If-pause] *)
         E_if(e',e1,e2),r')
-  | E_match(e,hs,e_els) ->
+  | E_case(e,hs,e_els) ->
      (match red (e,r) with
-      | (E_const c,r') -> 
-         (* [Match-select] *)
+      | (E_const c,r') ->
+         (* [Case-select] *)
          (match List.assoc_opt c hs with
           | None -> red (e_els,r')
           | Some ei -> red (ei,r'))
-      | (e',r') -> 
+      | (e',r') ->
+         (* [Case-pause] *)
+         E_case(e',hs,e_els),r')
+  | E_match(e,hs,eo) ->
+     (match red (e,r) with
+      | (E_app(E_const (Inj ctor),(E_const _ as v)),r') ->
+         (* [Match-select] *)
+         (match List.assoc_opt ctor hs with
+          | None -> (match eo with
+                     | None -> Prelude.Errors.raise_error ~msg:"match failure" ()
+                     | Some e' -> (e',r))
+          | Some (p,ei) -> red ((subst_p_e p v ei),r'))
+      | (e',r') ->
          (* [Match-pause] *)
-         E_match(e',hs,e_els),r')
+         E_match(e',hs,eo),r')
   | E_letIn(p,e1,e2) ->
     let e1',r' = red (e1,r) in
     if evaluated e1'
@@ -197,17 +210,14 @@ let rec red (e,r) =
             (subst_e g w @@
              subst_p_e p v e),r''
          | _ -> assert false)
-  | E_reg(V ev,e0) ->
+  | E_reg((p,e1),e0,l) ->
       (* [Reg] *)
       let v0,r = red (e0,r) in
-      let y = match Ast.un_deco ev with
-              | E_fun(P_var x,_) -> x
-              | _ -> assert false (* should be normalized as a function *) in
-      let v = match SMap.find_opt y r.mu with
+      let v = match SMap.find_opt l r.mu with
               | None -> v0
               | Some v -> v in
-      let v',r = red (E_app(ev,v),r) in
-      v', add_r y v' r
+      let v',r = red (E_letIn(p,v,e1),r) in
+      v', add_r l v' r
   | E_set(x,e1) ->
      (* [Set] *)
      let v,r' = red (e1,r) in
@@ -217,15 +227,6 @@ let rec red (e,r) =
      let v,r' = red (e1,r) in
      let r'' = add_r x v r' in
      red (e2,r'')
-  | E_step (e1,_) ->
-     let x = gensym () in (* todo, pu x in E_step(e1,x) *)
-     (* [LastIn] *)
-     let e1' = match SMap.find_opt x r.mu with
-              | None -> e1
-              | Some e2 -> e2 in
-      let e1'',r' = red (e1',r) in
-      let e1'' = if evaluated e1'' then e1 else e1'' in
-      (E_const Unit, add_r x e1'' r)
   | E_exec (e1,e2,k) ->
      (* [Exec] *)
      if not (SMap.mem k r.mu) then
@@ -249,7 +250,10 @@ let rec red (e,r) =
       if evaluated e1 && evaluated e2 then E_tuple[e1;e2],r else
       let e1',r1 = red (e1,r) in
       let e2',r2 = red (e2,r1) in
-      E_par(e1',e2'),r2
+      let e' = if evaluated e1' && evaluated e2'
+               then E_tuple[e1';e2']
+               else E_par(e1',e2') in
+      e',r2
   | E_static_array_get (x,e1) ->
       if evaluated e1 then E_const (buffer_get x e1 r),r else
       let e1',r1 = red (e1,r) in
@@ -291,8 +295,8 @@ let prepare_statics (statics: (x * static) list) : c array SMap.t =
 
 
 let interp_pi (pi : pi) (value_list : e list) : (e * r) =
-  let r = { r_init with static = prepare_statics pi.statics } in
-  let e = List.fold_right (fun (x1,e1) e -> E_letIn(P_var x1,e1,e)) pi.ds pi.main in
+  let r = { r_init with statics = prepare_statics pi.statics } in
+  let e = pi.main in
   interp ~init_env:r e value_list
 
 (* *************** evaluate a close expression *************** *)

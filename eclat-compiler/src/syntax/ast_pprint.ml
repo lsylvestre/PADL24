@@ -3,7 +3,7 @@
 open Types
 open Ast
 
-(** flag [hexa_int_pp_flag]: 
+(** flag [hexa_int_pp_flag]:
     - when true, integers displayed in hexadecimal
     - when false, integers displayed in decimal
  *)
@@ -11,7 +11,7 @@ let hexa_int_pp_flag = ref false
 
 open Format ;;
 set_ellipsis_text "<...>";; (* Format customization *)
-set_max_boxes 50 ;;
+set_max_boxes 500 ;;
 
 type fmt = formatter
 type 'a pp = fmt -> 'a -> unit
@@ -80,6 +80,13 @@ let pp_ty (fmt:fmt) (ty:ty) : unit =
                   (pp_type ~paren:false) dur
                   (pp_type ~paren:true) ret)
         ) fmt ()
+  | T_sum(cs) ->
+      fprintf fmt "(";
+      pp_print_list
+        ~pp_sep:(fun fmt () -> fprintf fmt " | ")
+      (fun fmt (x,t) ->
+         fprintf fmt "%s of %a" x (pp_type ~paren:false) t) fmt cs;
+      fprintf fmt ")"
   | T_array t ->
       fprintf fmt "%a array"
         (pp_type ~paren:true) t
@@ -160,9 +167,9 @@ let pp_tuple (fmt:fmt) pp vs =
 let rec pp_const (fmt:fmt) (c:c) : unit =
   match c with
   | Int (n,tz) ->
-      fprintf fmt "("; 
+      fprintf fmt "(";
       if !hexa_int_pp_flag then fprintf fmt "0x%x" n else fprintf fmt "%d" n;
-      fprintf fmt " : int<%a>)" pp_ty tz 
+      fprintf fmt " : int<%a>)" pp_ty tz
   | Bool b -> fprintf fmt "%b" b
   | Unit -> fprintf fmt "()"
   | String s -> fprintf fmt "\"%s\"" s
@@ -176,7 +183,9 @@ let rec pp_const (fmt:fmt) (c:c) : unit =
       fprintf fmt "#%a" pp_ident l
   | C_tuple(cs) ->
       pp_tuple fmt pp_const cs
-      
+  | Inj x ->
+      fprintf fmt "%s" x
+
 (** pretty printer for patterns *)
 let rec pp_pat (fmt:fmt) (p:p) : unit =
   match p with
@@ -189,80 +198,96 @@ let rec pp_pat (fmt:fmt) (p:p) : unit =
 
 
 (** pretty printer for expressions *)
-let rec pp_exp (fmt:fmt) (e:e) : unit =
+let pp_exp (fmt:fmt) (e:e) : unit =
+  let rec pp_e ~paren fmt e =
   match e with
   | E_deco(e,loc) ->
-      pp_exp fmt e
+      pp_e ~paren fmt e
   | E_const c ->
       pp_const fmt c
   | E_var x ->
       pp_ident fmt x
   | E_fun (p,e) ->
-       fprintf fmt "@[<v 2>(fun %a ->@,%a)@]"
+       fprintf fmt "(fun %a ->@,%a)"
           pp_pat p
-          pp_exp e
+          (pp_e ~paren:false) e
   | E_fix (f,(p,e)) ->
-       fprintf fmt "@[<v 2>(fix %a (fun %a ->@,%a))@]"
-          pp_ident f 
-          pp_pat p 
-          pp_exp e
+       fprintf fmt "(fix %a (fun %a ->@,%a))"
+          pp_ident f
+          pp_pat p
+          (pp_e ~paren:false) e
   | E_if(e,e1,e2) ->
-      fprintf fmt "(@[<v>if %a@,then %a@,else %a@])"
-        pp_exp e
-        pp_exp e1
-        pp_exp e2
-  | E_match(e,hs,e_els) ->
+      parenthesize ~paren (fun fmt () ->
+        fprintf fmt "@[<v>if %a@,then %a@,else %a@]"
+          (pp_e ~paren:true) e
+          (pp_e ~paren:false) e1
+          (pp_e ~paren:false) e2) fmt ()
+  | E_case(e,hs,e_els) ->
       fprintf fmt "(@[<v>match %a with@,%a@,| _ -> %a@])"
-        pp_exp e
+        (pp_e ~paren:false) e
         (pp_print_list
-            (fun fmt (c,e) -> fprintf fmt "| %a -> %a" pp_const c pp_exp e))
+            (fun fmt (c,e) -> fprintf fmt "| %a -> %a" pp_const c (pp_e ~paren:false) e))
          hs
-        pp_exp e_els
+        (pp_e ~paren:false) e_els
+  | E_match(e,hs,eo) ->
+      fprintf fmt "(@[<v>match %a with@,%a%a@])"
+        (pp_e ~paren:true) e
+        (pp_print_list
+            (fun fmt (x,(p,e)) -> fprintf fmt "| %s %a -> %a" x pp_pat p (pp_e ~paren:false) e))
+         hs
+        (fun fmt eo ->
+            match eo with
+            | None -> ()
+            | Some e -> fprintf fmt "@,| _ -> %a" (pp_e ~paren:false) e) eo
   | E_letIn(p,e1,e2) ->
-      fprintf fmt "(@[<v>let %a = %a@,in %a@])"
-        pp_pat p
-        pp_exp e1
-        pp_exp e2
+      parenthesize ~paren (fun fmt () ->
+        fprintf fmt "@[<v>@[<v 2>let %a =@,%a in@]@,%a@]"
+          pp_pat p
+          (pp_e ~paren:false) e1
+          (pp_e ~paren:false) e2) fmt ()
   | E_app(e1,e2) ->
-      fprintf fmt "@[<v>(%a %a)@]"
-        pp_exp e1
-        pp_exp e2
+      parenthesize ~paren (fun fmt () ->
+        fprintf fmt "@[<v>%a %a@]"
+          (pp_e ~paren:true) e1
+          (pp_e ~paren:true) e2) fmt ()
   | E_tuple es ->
-        pp_tuple fmt pp_exp es
-  | E_reg(V ev, e0) ->
-      fprintf fmt "(@[<v>reg %a last %a@])"
-        pp_exp ev pp_exp e0
+        pp_tuple fmt (pp_e ~paren:false) es
+  | E_reg((p,e1), e0,l) ->
+      parenthesize ~paren (fun fmt () ->
+        fprintf fmt "@[<v>reg[%s] (fun %a -> %a) last %a@]" l
+          pp_pat p
+          (pp_e ~paren:false) e1 (pp_e ~paren:false) e0) fmt ()
   | E_exec(e1,e2,x) ->
       fprintf fmt "(@[<v>exec[%s] %a default %a@])"
-        x pp_exp e1 pp_exp e2
+        x (pp_e ~paren:false) e1 (pp_e ~paren:false) e2
   | E_lastIn(x,e1,e2) ->
       fprintf fmt "(@[<v>last %a = %a in@,%a@])"
         pp_ident x
-        pp_exp e1
-        pp_exp e2
+        (pp_e ~paren:false) e1
+        (pp_e ~paren:false) e2
   | E_set(x,e1) ->
-      fprintf fmt "(@[<v>(%a <- %a)@])"
-        pp_ident x pp_exp e1
+      parenthesize ~paren (fun fmt () ->
+        fprintf fmt "@[<v>%a <- %a@]"
+          pp_ident x (pp_e ~paren:false) e1) fmt ()
   | E_static_array_get(x,e1) ->
       fprintf fmt "@[<v>(%a[%a])@]"
         pp_ident x
-        pp_exp e1
+        (pp_e ~paren:false) e1
   | E_static_array_length(x) ->
       fprintf fmt "@[<v>%a.length@]"
         pp_ident x
   | E_static_array_set(x,e1,e2) ->
-      fprintf fmt "@[<v>(%a[%a] <- %a)@]"
-        pp_ident x
-        pp_exp e1
-        pp_exp e2
-  | E_step(e,x) ->
-      fprintf fmt "[step %a]^%s"
-        pp_exp e x
+      parenthesize ~paren (fun fmt () ->
+        fprintf fmt "@[<v>%a[%a] <- %a@]"
+          pp_ident x
+          (pp_e ~paren:false) e1
+          (pp_e ~paren:false) e2) fmt ()
   | E_par(e1,e2) ->
       fprintf fmt "(%a || %a)"
-        pp_exp e1
-        pp_exp e2
-
+        (pp_e ~paren:false) e1
+        (pp_e ~paren:false) e2
+  in
+  fprintf fmt "@[<v 0>%a@]" (pp_e ~paren:false) e
 
 (** pretty printer for static declarations *)
 let pp_static (fmt:fmt) (g:static) : unit =
@@ -272,8 +297,7 @@ let pp_static (fmt:fmt) (g:static) : unit =
 
 (** pretty printer for programs *)
 let pp_pi (fmt:fmt) (pi:pi) : unit =
-  let {statics;ds;main} = pi in
+  let {statics;main} = pi in
   fprintf fmt "@[<v>";
   List.iter (fun (x,g) -> fprintf fmt "let %s = %a;;@," x pp_static g) statics;
-  List.iter (fun (x,e) -> fprintf fmt "let %s = %a;;@," x pp_exp e) ds;
   fprintf fmt "%a@]" pp_exp main

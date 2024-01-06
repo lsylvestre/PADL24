@@ -22,7 +22,7 @@ clean:
 	rm -f *~
 	rm -f *.o *.dot *.vhd *.cf
 	rm -f tb tb.vcd
+	(cd synth/yosys-ecp5; make clean)
 
 clean-all:	clean
 	rm -f main.vhdl tb_main.vhdl
-	# make -f synth/targets/orangecrab/Makefile clean

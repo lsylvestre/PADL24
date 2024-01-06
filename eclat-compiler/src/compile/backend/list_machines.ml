@@ -27,6 +27,7 @@ let rec list_machines_s s =
       extra_machines := (id,(sv,compute,List.map fst ts)) :: !extra_machines;
       let ts,s = list_machines (ts,s) in
       S_fsm(id,rdy,result2,compute,ts,s,b)
+  | S_in_fsm(id,s) -> S_in_fsm(id,list_machines_s s)
   | S_call _ -> s
 
 and list_machines (ts,s) =

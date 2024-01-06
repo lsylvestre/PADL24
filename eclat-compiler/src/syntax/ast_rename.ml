@@ -4,8 +4,8 @@ open Pattern
 
 (* custom symbol generator *)
 module Gensym : sig val reset : unit -> unit
-                    val gensym : x -> x end = struct
-  
+                    val gensym : statics:x list -> x -> x end = struct
+
   let of_int (n:int) : x =
     "$"^string_of_int n
 
@@ -25,12 +25,12 @@ module Gensym : sig val reset : unit -> unit
 
   let h = Hashtbl.create 10;;
 
-  let reset () = 
+  let reset () =
     (* c := 0;*)  (* no ! *)
     Hashtbl.clear h
 
-  let gensym x =
-    if Hashtbl.mem h x then (let y = rename x in Hashtbl.add h x y; y)
+  let gensym ~statics x =
+    if Hashtbl.mem h x || List.mem x statics then (let y = rename x in Hashtbl.add h x y; y)
     else (Hashtbl.add h x x; x)
 
 end
@@ -39,33 +39,46 @@ open Gensym
 
 (** [rename_pat p] rename all names in the pattern [p],
   assuming that any variable is bound several times in p *)
-let rec rename_pat p =
+let rec rename_pat ~statics p =
    match p with
    | P_unit -> P_unit
-   | P_var x -> P_var (gensym x)
-   | P_tuple ps -> P_tuple (List.map rename_pat ps)
+   | P_var x -> P_var (gensym ~statics x)
+   | P_tuple ps -> P_tuple (List.map (rename_pat ~statics) ps)
 
-let rec rename_e = function
+let rename_e ~statics e =
+  let rec ren_e = function
   | E_fix(f,(p,e1)) ->
-      let g = gensym f in
-      let pz = rename_pat p in
+      let g = gensym ~statics f in
+      let pz = rename_pat ~statics p in
       let e1_ren = subst_e f (E_var g) @@
                    subst_p_e p (pat2exp pz) e1 in
-      E_fix (g,(pz,rename_e e1_ren))
+      E_fix (g,(pz, ren_e e1_ren))
   | E_fun(p,e1) ->
-      let pz = rename_pat p in
-      E_fun (pz,rename_e (subst_p_e p (pat2exp pz) e1))
+      let pz = rename_pat ~statics p in
+      E_fun (pz,ren_e (subst_p_e p (pat2exp pz) e1))
   | E_letIn(p,e1,e2) ->
-      let pz = rename_pat p in
+      let pz = rename_pat ~statics p in
       let ez = pat2exp pz in
-      E_letIn(pz, rename_e e1, rename_e @@ subst_p_e p ez e2)
+      E_letIn(pz, ren_e e1, ren_e @@ subst_p_e p ez e2)
+  | E_match(e1,hs,eo) ->
+      let hs' = List.map (fun (inj,(p,ei)) ->
+                            let pz = rename_pat ~statics p in
+                            let ei' = (subst_p_e p (pat2exp pz) ei) in
+                            (inj,(pz,ei'))) hs in
+      E_match(ren_e e1, hs',Option.map ren_e eo)
+  | E_reg((p,e1),e0,l) ->
+      let pz = rename_pat ~statics p in
+      let e1' = ren_e (subst_p_e p (pat2exp pz) e1) in
+     E_reg((pz,e1'),ren_e e0,l)
   | E_lastIn(x,e1,e2) ->
-      let y = gensym x in
-      E_lastIn(y,rename_e e1, rename_e @@ subst_e x (E_var y) e2)
-  | e -> Ast_mapper.map rename_e e
+      let y = gensym ~statics x in
+      E_lastIn(y, ren_e e1, ren_e @@ subst_e x (E_var y) e2)
+  | e -> Ast_mapper.map ren_e e
+  in
+  ren_e e
 
 let rename_pi pi =
-  Gensym.reset (); 
-  let ds = List.map (fun (x,e) -> x,rename_e e) pi.ds in
-  let main = rename_e pi.main in
-  { pi with ds ; main }
+  Gensym.reset ();
+  let statics = List.map fst pi.statics in
+  let main = rename_e ~statics pi.main in
+  { pi with main }

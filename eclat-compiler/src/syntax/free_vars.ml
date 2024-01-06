@@ -15,10 +15,19 @@ let fv ?(xs=SMap.empty) e =
       SMap.empty
   | E_if(e1,e2,e3) ->
       aux xs e1 ++ aux xs e2 ++ aux xs e3
-  | E_match(e1,hs,e_els) ->
-      aux xs e1 ++ 
-      List.fold_left (fun acc (c,ei) -> (acc ++ aux xs ei)) SMap.empty hs ++ 
+  | E_case(e1,hs,e_els) ->
+      aux xs e1 ++
+      List.fold_left (fun acc (c,ei) -> (acc ++ aux xs ei)) SMap.empty hs ++
       aux xs e_els
+  | E_match(e1,hs,eo) ->
+      let s = aux xs e1 ++
+              List.fold_left (fun acc (_,(p,ei)) ->
+                let ys = vars_of_p p in
+                let xs' = xs++ys in
+                (acc ++ aux xs' ei)) SMap.empty hs in
+      (match eo with
+      | None -> s
+      | Some ew -> s ++ aux xs ew)
   | E_letIn(p,e1,e2) ->
       let ys = vars_of_p p in
       let xs' = xs ++ ys in
@@ -35,8 +44,10 @@ let fv ?(xs=SMap.empty) e =
       aux xs' e
   | E_tuple(es) ->
       List.fold_left (fun acc ei -> acc ++ aux xs ei) SMap.empty es
-  | E_reg(V ev, e0) ->
-      aux xs ev ++ aux xs e0
+  | E_reg((p,e1), e0, _) ->
+      let ys = vars_of_p p in
+      let xs' = xs++ys in
+      aux xs' e1 ++ aux xs e0
   | E_exec(e1,e2,_k) ->
       (* _k is in a different name space than variables *)
       aux xs e1 ++ aux xs e2
@@ -51,9 +62,6 @@ let fv ?(xs=SMap.empty) e =
       SMap.singleton x ()
   | E_static_array_set(x,e1,e2) ->
       SMap.add x () @@ (aux xs e1 ++ aux xs e2)
-  | E_step(e1,_k) ->
-      (* _k is in a different name space than variables *)
-      aux xs e1
   | E_par(e1,e2) ->
       aux xs e1 ++ aux xs e2
   in

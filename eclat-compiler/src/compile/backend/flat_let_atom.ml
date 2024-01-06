@@ -1,4 +1,3 @@
-open Combinatorial
 open Fsm_syntax
 
 let rec flat = function
@@ -13,17 +12,16 @@ let rec flat = function
 | A_call(op,a) ->
    let bs,a' = flat a in
    bs,A_call(op,a')
-| A_string_get _ as a -> (* no sub-atoms*)
-   [],a
-| (A_buffer_get _ | A_buffer_length _) as a -> (* no sub-atoms*)
-   [],a
+| A_string_get _
+| A_buffer_get _
+| A_buffer_length _
+| A_encode _
+| A_decode _ as a ->  (* no sub-atoms*)
+    [],a
+
 
 let s_let_bindings bs s =
   List.fold_right (fun (x,a) s -> S_letIn(x,a,s)) bs s
-
-let flat_a a =
-  let bs,a' = flat a in
-  List.fold_right (fun (x,a1) a2 -> A_letIn(x,a1,a2)) bs a'
 
 let rec flat_s s =
   match s with
@@ -39,11 +37,11 @@ let rec flat_s s =
      s_let_bindings bs @@ S_set(x,a')
   | (S_buffer_set _) as s -> (* no sub-instructions *)
      s
-  | S_setptr(x,a) -> 
+  | S_setptr(x,a) ->
       let bs,a' = flat a in
       s_let_bindings bs @@
       S_setptr(x,a')
-  | S_setptr_write(x,a,a_upd) -> 
+  | S_setptr_write(x,a,a_upd) ->
       let bs,a' = flat a in
       let bs2,a_upd' = flat a_upd in
       s_let_bindings bs @@
@@ -55,6 +53,8 @@ let rec flat_s s =
       s_let_bindings bs @@ S_letIn(x,a',flat_s s)
   | S_fsm(id,rdy,result,compute,ts,s,b) ->
       S_fsm(id,rdy,result,compute,List.map (fun (x,s) -> x,flat_s s) ts, flat_s s,b)
+  | S_in_fsm(id,s) ->
+      S_in_fsm(id,flat_s s)
   | S_call(op,a) ->
       let bs,a' = flat a in
       s_let_bindings bs @@ S_call(op,a')

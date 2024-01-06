@@ -15,6 +15,7 @@ type c =                (** constant [c] *)
   | External of extern  (** asynchronous primitive *)
   | V_loc of l          (** pointer [l], only for the interpreter, not in source programs *)
   | C_tuple of c list   (** tuple literal *)
+  | Inj of x            (* constructor (data type) *)
 
 and op = (** primitives *)
        (* instantaneous primitives *)
@@ -24,7 +25,7 @@ and op = (** primitives *)
             arity : int   (* size (i.e. number of projections) of the tuple *)
          }
         (* instantaneous primitives *)
-       | Wait of int 
+       | Wait of int
        | TyConstr of ty
 
 
@@ -35,24 +36,25 @@ and extern =
   | Array_get    (** read one element in a dynamic array *)
   | Array_length (** read the size of a a dynamic array *)
 
-type p =                     (** pattern [p] *) 
+type p =                     (** pattern [p] *)
     P_unit                   (** constant unit [()] *)
   | P_var of x               (** variable [x] *)
   | P_tuple of p list        (** tuple [(p1, ... pn)] *)
 
-type e =                      (** expression     [e]                     *)
-    E_deco of e * deco        (** annot an expression with its location  in the source code *)
-  | E_const of c              (** constant       [c]                     *)
-  | E_var of x                (** variable       [x,y,f,g ...]           *)
-  | E_app of e * e            (** application    [e1 e2]                 *)
-  | E_tuple of e list         (** tuple          [e1, ... en]            *)
-  | E_letIn of p * e * e      (** let-bindings   [let p = e1 in e2]      *)
-  | E_if of e * e * e         (** conditional    [if e1 then e2 else e3] *)
-  | E_match of e * (c * e) list * e (** switch/case    [match e with | c -> e | ... | _ -> e] *)
-  | E_fun of p * e            (** function       [fun p -> e]            *)
-  | E_fix of x * (p * e)      (** recursive function [fix (fun p -> e)]  *)
-  | E_reg of v * e            (** register       [reg f last e]          *)
-  | E_exec of e * e * x       (** exec           [(exec e default e)^x]  *)
+type e =                      (** expression     [e]                       *)
+    E_deco of e * deco        (** annot an expression with its location in the source code *)
+  | E_const of c              (** constant       [c]                       *)
+  | E_var of x                (** variable       [x,y,f,g ...]             *)
+  | E_app of e * e            (** application    [e1 e2]                   *)
+  | E_tuple of e list         (** tuple          [e1, ... en]              *)
+  | E_letIn of p * e * e      (** let-bindings   [let p = e1 in e2]        *)
+  | E_if of e * e * e         (** conditional    [if e1 then e2 else e3]   *)
+  | E_case of e * (c * e) list * e (** switch/case    [match e with | c -> e | ... | _ -> e] *)
+  | E_match of e * (x * (p * e)) list * e option (* sum type projection [match e with inj1 p1 -> e1 | ... ] *)
+  | E_fun of p * e            (** function       [fun p -> e]              *)
+  | E_fix of x * (p * e)      (** recursive function [fix (fun p -> e)]    *)
+  | E_reg of (p * e) * e * l     (** register       [reg^l (fun p -> e) last e] *)
+  | E_exec of e * e * l       (** exec           [(exec^l e default e)]    *)
   | E_static_array_get of x * e     (** static array access     [x[e]]      *)
   | E_static_array_length of x      (** static array length access x.length *)
   | E_static_array_set of x * e * e (** static array assignment [x[e] <- e] *)
@@ -63,20 +65,17 @@ type e =                      (** expression     [e]                     *)
   | E_set of x * e            (** assignment     [x <- e]
                                   type checking must ensure that [x]
                                   is bound using the var/in construct    *)
-  | E_step of e * x           (** spawn          [(step e)^x]            *)
-
-and v = V of e
 
 type static =                 (* static toplevel data *)
   | Static_array of c * int   (** static global array [c^n] *)
 
-(** each program is a sequence of toplevel definitions (static arrays 
-    and functions) coupled with an entry point, e.g. the variable [main] 
+(** each program is a sequence of toplevel definitions (static arrays
+    and functions) coupled with an entry point, e.g. the variable [main]
     referting to one of those definitions *)
 type pi = {
-  statics : (x * static) list ; (** static global arrays *)
-  ds : (x * e) list ;           (** toplevel function definitions *)
-  main : e                      (* entry point *)
+  statics : (x * static) list ;     (** static global arrays *)
+  sums : (x * (x * ty) list) list ; (** sum types *)
+  main : e                          (** body *)
 }
 
 
@@ -118,7 +117,7 @@ type 'a env = 'a SMap.t
 type set = unit SMap.t
 
 
-(** [m1 + m2] merges the bindings from [m1] and [m2]. In case of conflict, 
+(** [m1 + m2] merges the bindings from [m1] and [m2]. In case of conflict,
    the bindings from [m2] is keeped. *)
 let (++) (m1 : 'a smap) (m2 : 'a smap)  : 'a smap =
   SMap.union (fun _ _ v2 -> Some v2) m1 m2
@@ -129,13 +128,13 @@ let smap_of_list (l : (x * 'a) list) : 'a smap =
 
 (** [vars_of_p p] returns the (free) variables used in the pattern [p] *)
 let rec vars_of_p (p:p) : unit smap =
-  match p with 
+  match p with
   | P_unit -> SMap.empty
   | P_var x -> SMap.singleton x ()
   | P_tuple ps ->
     List.fold_left (fun m p -> vars_of_p p ++ m) SMap.empty ps
 
-(** [un_annot e] removes decoration (i.e., position in the source file) 
+(** [un_annot e] removes decoration (i.e., position in the source file)
    around expression [e] *)
 let rec un_deco (e:e) : e =
   match e with
@@ -177,7 +176,7 @@ let rec evaluated (e:e) : bool =
   | E_app(E_const(Op(TyConstr _)),e) -> evaluated e
   | _ -> false
 
-(** [loc_of e] returns the location arround [e] if it exists, 
+(** [loc_of e] returns the location arround [e] if it exists,
    or a default location *)
 let rec loc_of (e:e) : Prelude.loc =
   match e with
@@ -185,12 +184,12 @@ let rec loc_of (e:e) : Prelude.loc =
       loc
   | e -> Prelude.dloc
 
-(** [mk_loc loc e] plugs the expression [e] into a node 
+(** [mk_loc loc e] plugs the expression [e] into a node
    indicating the location [loc] *)
 let mk_loc (loc: Prelude.loc) (e:e) : e =
   E_deco(e,loc)
 
-(** [ty_annot ~ty e] plugs the expression [e] under a type constraints 
+(** [ty_annot ~ty e] plugs the expression [e] under a type constraints
    such as [(e:ty)] *)
 let ty_annot ~(ty:ty) (e:e) : e =
   E_app(E_const (Op (TyConstr ty)),e)

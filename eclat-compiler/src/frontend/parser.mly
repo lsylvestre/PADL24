@@ -19,8 +19,9 @@
 %token FUN AMP DOT REGISTER EXEC LAST DEFAULT
 %token NODE IMPLY
 %token MATCH WITH PIPE END
+%token OF
 %token LET REC AND IN IF THEN ELSE FIX VAR
-%token <string> IDENT TVAR_IDENT
+%token <string> IDENT UP_IDENT TVAR_IDENT
 %token <bool> BOOL_LIT
 %token <int> INT_LIT
 %token PLUS MINUS TIMES LT LE GT GE NEQ NOT MOD DIV AMP_AMP OR
@@ -51,20 +52,21 @@
 %nonassoc DOT
 %nonassoc BOOL_LIT IDENT LPAREN
 
-%start <(x * static) list * ((p*e)*Prelude.loc) list> pi
+%start <(x * static) list * (x * (x * ty) list) list * ((p*e)*Prelude.loc) list> pi
 %start <((p*e)*Prelude.loc) option> decl_opt
 %start <e> exp_eof
 
 %%
 
 pi:
-| g=static pi=pi { let gs,ds= pi in (g::gs,ds) }
-| d=decl pi=pi { let gs,ds= pi in (gs,d::ds) }
+| g=static pi=pi { let gs,ts,ds= pi in (g::gs,ts,ds) }
+| d=typ_sum pi=pi { let gs,ts,ds= pi in (gs,d::ts,ds) }
+| d=decl pi=pi { let gs,ts,ds= pi in (gs,ts,d::ds) }
 | type_alias pi=pi { pi }
-| EOF { [],[] }
+| EOF { [],[],[] }
 
 static:
-| LET STATIC x=IDENT EQ w=const_init_static HAT n=INT_LIT SEMI_SEMI { 
+| LET STATIC x=IDENT EQ w=const_init_static HAT n=INT_LIT SEMI_SEMI {
     let rec as_const e =
       match un_annot e with
       | E_const c -> c
@@ -72,7 +74,7 @@ static:
       | _ ->  Prelude.Errors.raise_error ~loc:(with_file $loc)
                   ~msg:"this expression should be a constant" ()
       in
-      let (ce,tyopt) = w in 
+      let (ce,tyopt) = w in
       let c = as_const ce in
       (* todo: add loc and type annotation [tyopt] *)
       (x,Static_array(c,n)) }
@@ -101,6 +103,11 @@ decl:
 type_alias: /* todo: avoid side effect, which depends on the left-to-right evaluation order */
 | TYPE x=IDENT EQ ty=ty SEMI_SEMI { Hashtbl.add alias_types x ty }
 
+typ_sum:
+| TYPE x=IDENT EQ ts=separated_nonempty_list(PIPE,ty_case) { x,ts }
+
+ty_case:
+| x=UP_IDENT OF ty=ty { x,ty }
 
 fun_decl(In_kw):
 | f=IDENT p_ty_opt=arg_ty_atomic
@@ -182,7 +189,11 @@ aty:
 | x=TVAR_IDENT { unknown () } /* TODO: hashmap to constrain occurrences */
 | LPAREN ty=ty RPAREN { ty }
 
+
 value:
+  v=value_desc { mk_loc (with_file $loc) v }
+
+value_desc:
 | e=lvalue COMMA es=separated_nonempty_list(COMMA,lvalue)
     { E_tuple (e::es) }
 | e=lvalue { e }
@@ -258,16 +269,6 @@ lexp_desc:
 | NODE b=fun_decl(IN) e2=exp
         { let (p,e1) = enforce_node b in
           E_letIn(p,e1,e2) }
-
-| MATCH e=exp WITH 
-PIPE? cases=match_case*
-IDENT RIGHT_ARROW otherwise=exp END 
-  { E_match(e,cases,otherwise) }
-
-match_case:
-| c=const RIGHT_ARROW e=exp PIPE { (c,e) }
-
-
 ret_ty_annot_eq:
 | EQ { None }
 | COL ty=ty EQ { Some ty }
@@ -276,7 +277,7 @@ bindings(P,E):
 | b=binding(P,E) { b }
 | b1=binding(P,E) AND b2=binding(P,E)
   { let (p1,e1) = b1 in
-    let (p2,e2) = b2 in 
+    let (p2,e2) = b2 in
     (P_tuple[p1;p2], (E_par(e1,e2))) }
 /*| b=binding(P,E) AND bs=separated_nonempty_list(AND,binding(P,E))
   { let ps,es = List.split (b::bs) in
@@ -300,8 +301,8 @@ app_exp_desc:
 | x=IDENT DOT_LENGTH { E_static_array_length x }
 | x=IDENT LBRACKET e1=exp RBRACKET LEFT_ARROW e2=app_exp { E_static_array_set(x,e1,e2) }
 | e=aexp  es=aexp+ { match e::es with
-                    | [e1;e2] -> (match un_annot e1 with 
-                                  | E_var _|E_const _ -> E_app(e1,e2)
+                    | [e1;e2] -> (match un_annot e1 with
+                                  | E_var _ | E_const _ -> E_app(e1,e2)
                                   | _ -> Prelude.Errors.raise_error ~loc:(with_file $loc)
                                ~msg:"expression in functional position should be a variable or a constante" ())
                     | _ -> Prelude.Errors.raise_error ~loc:(with_file $loc)
@@ -320,14 +321,15 @@ app_exp_desc:
           E_if(e1,e2,e3)
         }
 | REGISTER ev=avalue LAST e0=aexp
-       {
-         E_reg(V ev,e0)
+       { match un_annot ev with
+         | E_fun(p,e1) -> E_reg((p,e1),e0,Ast.gensym ())
+         | _ -> Prelude.Errors.raise_error ~loc:(with_file $loc)
+                               ~msg:"This expression should be a function" ()
        }
 | REGISTER f=IDENT LAST e0=aexp
        {
-        E_reg (V (E_var f),e0)
-        (* let y = gensym () in
-         E_reg(V (E_fun(y,E_app(E_var f,E_var y))),e0) *)
+        let y = gensym () in
+         E_reg((P_var y,E_app(E_var f,E_var y)),e0,Ast.gensym ())
        }
 | EXEC e1=exp DEFAULT e2=lexp
        { E_exec(e1,e2,"") }
@@ -360,9 +362,39 @@ aexp_desc:
             | "assert" -> E_const (Op(Runtime(Assert)))
             | "array_make" -> E_const (External Array_make)
             | "array_length" -> E_const (External Array_length)
+            | "_" -> Prelude.Errors.raise_error ~loc:(with_file $loc)
+                         ~msg:"wildcard \"_\" not expected." ()
             | _ -> E_var x }
 | SHARP_PIPE_LBRACKET separated_list(COMMA,app_exp) PIPE_RBRACKET
     { (* Buffer n *) assert false (*todo*)  }
+
+| MATCH e=exp WITH
+    PIPE? cases=match_case_const*
+    IDENT RIGHT_ARROW otherwise=exp END
+      { E_case(e,cases,otherwise) }
+
+| MATCH e=exp WITH
+    PIPE? rev_cases=match_cases END
+      { let (hs,eo) = rev_cases in
+        E_match(e,List.rev hs,eo) }
+
+match_case_const:
+| c=const RIGHT_ARROW e=exp PIPE { (c,e) }
+
+match_cases:
+| e=wildcard_case                         { [],Some e }
+| h=match_case                            { [h],None }
+| h=match_case PIPE rev_cases=match_cases { let (hs,eo) = rev_cases in h::hs,eo }
+
+match_case:
+| x=UP_IDENT p=apat RIGHT_ARROW e=exp { (x,(p,e)) }
+
+wildcard_case:
+| x=IDENT RIGHT_ARROW e=exp
+        { match x with
+          | "_" -> e
+          | _ -> Prelude.Errors.raise_error ~loc:(with_file $loc)
+                  ~msg:"the wildcard_case should be named \"_\"" () }
 
 
 pat:
@@ -378,24 +410,25 @@ apat:
 
 (* const_with_neg_int:
 | c=const | LPAREN c=const_with_neg_int RPAREN  { c }
-| MINUS n=INT_LIT { Int(- n,unknown()) } 
+| MINUS n=INT_LIT { Int(- n,unknown()) }
 *)
 
 const:
 | LPAREN RPAREN { Unit }
-| b=BOOL_LIT { Bool b }
-| n=INT_LIT  {
+| b=BOOL_LIT    { Bool b }
+| n=INT_LIT {
     Int (n,unknown()) }
-| n=INT_LIT QUOTE k=INT_LIT 
-    { if Float.log2 (float n) >= float (k-1) then 
-       Prelude.Errors.raise_error ~loc:(with_file $loc) 
+| n=INT_LIT QUOTE k=INT_LIT
+    { if Float.log2 (float n) >= float (k-1) then
+       Prelude.Errors.raise_error ~loc:(with_file $loc)
           ~msg:("Integer literal "^
                 string_of_int n^
                 " exceeds the range of representable integers of type int<"^
                 string_of_int k ^">") ()
       else Int (n,T_size k) }
-| s=STRING_LIT  { String s }
-| NOT { Op(Runtime(Not)) }
+| s=STRING_LIT           { String s }
+| NOT                    { Op(Runtime(Not)) }
+| x=UP_IDENT             { Inj x }
 | LPAREN op=binop RPAREN { Op(Runtime(op)) }
 
 %inline binop:
@@ -412,10 +445,9 @@ const:
 | NEQ        { Neq }
 | AMP        { And }
 | XOR        { Xor }
-| LXOR       { Lxor } 
-| LAND       { Land } 
-| LOR        { Lor } 
-| LSL        { Lsl } 
+| LXOR       { Lxor }
+| LAND       { Land }
+| LOR        { Lor }
+| LSL        { Lsl }
 | LSR        { Lsr }
 | ASR        { Asr }
-

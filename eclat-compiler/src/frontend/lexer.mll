@@ -19,6 +19,7 @@
        "and",   AND;
        "in",    IN;
        "if",    IF;
+       "of",    OF;
        "then",  THEN;
        "else",  ELSE;
        "fix",   FIX;
@@ -59,6 +60,7 @@ let tvar_ident = ['''] ident
 rule token = parse
 | ident as id         { try Hashtbl.find keywords id with
                         | Not_found -> IDENT id }
+| up_ident as id      { UP_IDENT id }
 | tvar_ident as lxm   { TVAR_IDENT lxm }
 | '('                 { LPAREN }
 | ')'                 { RPAREN }

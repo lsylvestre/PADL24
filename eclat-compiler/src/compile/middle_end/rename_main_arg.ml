@@ -12,9 +12,5 @@ let rec rename_main_arg_exp e =
     Format.(fprintf std_formatter "==========>%a\n" Ast_pprint.pp_exp (e));
     assert false (* can occur ? *)
 
-
-let rec rename_main_arg (ds,e) =
-  ds,rename_main_arg_exp e
-
 let rec rename_main_arg_pi pi =
   { pi with main = rename_main_arg_exp pi.main }

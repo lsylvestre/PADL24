@@ -1,15 +1,32 @@
+-- code generated from the following source code:
+--   ../ocaml-vm/vm/mlvalue.ecl
+--   ../ocaml-vm/vm/fail.ecl
+--   ../ocaml-vm/vm/ram.ecl
+--   ../ocaml-vm/vm/runtime.ecl
+--   ../ocaml-vm/vm/debug.ecl
+--   ../ocaml-vm/vm/alloc.ecl
+--   ../ocaml-vm/vm/prims.ecl
+--   ../ocaml-vm/bytecode.ecl
+--   ../ocaml-vm/vm/vm.ecl
+--   ../ocaml-vm/vm/target-specific/intel-max10/IOs.ecl
+--   ../ocaml-vm/vm/target-specific/intel-max10/main.ecl
+--
+-- with the following command:
+--
+--    ./eclat -arg ((true,true,true,true,true,true,true,true,true,true),(true,false)) ../ocaml-vm/vm/mlvalue.ecl ../ocaml-vm/vm/fail.ecl ../ocaml-vm/vm/ram.ecl ../ocaml-vm/vm/runtime.ecl ../ocaml-vm/vm/debug.ecl ../ocaml-vm/vm/alloc.ecl ../ocaml-vm/vm/prims.ecl ../ocaml-vm/bytecode.ecl ../ocaml-vm/vm/vm.ecl ../ocaml-vm/vm/target-specific/intel-max10/IOs.ecl ../ocaml-vm/vm/target-specific/intel-max10/main.ecl
 
-  library ieee;
-  use ieee.std_logic_1164.all;
-  use ieee.numeric_std.all;
 
-  use work.runtime.all;
-  use work.all;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
 
-  entity tb_main is
+use work.runtime.all;
+use work.all;
+
+entity tb_main is
 end entity;
 
-  architecture tb of tb_main is
+architecture tb of tb_main is
   component main
     port(
       signal clk    : in std_logic;
@@ -46,12 +63,20 @@ end component;
 
   U1: main port map(tb_clk,rst,tb_run,tb_rdy,tb_argument,tb_result);
   process
-  begin
+  variable 
+\$v3003\ : value(0 to 11) := (others => '0');
+begin
     tb_run <= '0';
-    wait for 20 ns;
+    wait for 10 ns;
     tb_run <= '1';
       -- Start computation
-  tb_argument <= (others => '0');
+      \$v3003\ := eclat_true & eclat_true & eclat_true & eclat_true & eclat_true & eclat_true & eclat_true & eclat_true & eclat_true & eclat_true & eclat_true & eclat_false;
+      tb_argument <= \$v3003\;
+
+      wait for 10 ns;
+      while tb_rdy = "0" loop
+        wait for 10 ns;
+      end loop;
 
     wait;
   end process;

@@ -1,7 +1,7 @@
 open CustomStdlib ;;
 
-(*  make vm SRC=bench/list_length/length_with_ext.ml   \
-            CUSTOM="bench/list_length/length_ext.ecl" FLAGS="" 
+(*  make vm SRC=benchs/list_length/length_with_ext.ml   \
+            CUSTOM="benchs/list_length/length_ext.ecl" FLAGS=""
 
 *)
 
@@ -20,7 +20,7 @@ let nb_times = 1 ;; (* nb_times=1 is for RTL simulation on PC,
                        augment nb_times for FPGA or PC execution *)
 
 for i = 1 to nb_times do
-  print_int (length l) 
+  print_int (length l)
 done ;;
 
 

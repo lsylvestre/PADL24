@@ -29,4 +29,4 @@ let rec inline env e =
 
 let normalize e =
   (* Ast_rename.rename_e @@ *)
-  Instantiate.instantiate (inline Ast.SMap.empty (Ast_rename.rename_e e))
+  Instantiate.instantiate (inline Ast.SMap.empty (Ast_rename.rename_e ~statics:[] e))

@@ -1,21 +1,19 @@
 
-type print_mode = Any | Rename | Front | Encode | Anf | Let_floating | Lambda_lifting
+type print_mode = Any | Front | Let_floating | Lambda_lifting
                 | Specialize | Inline | Propagation
-                | Matching | MiddleEnd
+                | Matching | Anf | MiddleEnd
 
 let string_of_print_mode s =
   match s with
   | "none" -> Any
   | "front" -> Front
-  | "ren" -> Rename
-  | "encode" -> Encode
-  | "anf" -> Anf
   | "float" -> Let_floating
   | "lift" -> Lambda_lifting
   | "spec" -> Specialize
   | "inl" -> Inline
   | "prop" -> Propagation
   | "match" -> Matching
+  | "anf" -> Anf
   | "middle-end" -> MiddleEnd
   | _ -> failwith "unknown print mode"
 

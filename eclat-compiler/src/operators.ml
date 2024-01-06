@@ -18,7 +18,7 @@ type op =
   | Print | Print_string | Print_int | Print_newline | Assert
 
 
-let combinatorial p =
+let combinational p =
   match p with
   | Print | Print_string | Print_int | Print_newline | Assert -> false
   | _ -> true
@@ -105,9 +105,10 @@ let gen_op fmt (op:op) pp a : unit =
   let open Format in
   let funcall fmt s = fprintf fmt "%s(%a)" s pp a in
   let procall fmt s = fprintf fmt "%s(%a)" s pp a in
-  let skip_when b fmt f a =
+  let skip_when b fmt f s =
     if b then fprintf fmt "eclat_skip(eclat_unit)"
-    else f fmt a in
+    else f fmt s 
+  in
   match op with
   | Add -> funcall fmt "eclat_add"
   | Sub -> funcall fmt "eclat_sub"
@@ -144,6 +145,9 @@ let gen_op fmt (op:op) pp a : unit =
   | Print_newline ->
       skip_when !flag_no_print fmt procall "eclat_print_newline"
   | Assert ->
-      skip_when !flag_no_assert fmt procall "eclat_skip"
+      skip_when !flag_no_assert fmt (fun fmt () -> 
+          fprintf fmt 
+              "assert %a = eclat_true report \"assertion failed\" severity error"
+              pp a) ()
   | String_length ->
       procall fmt "eclat_string_length"

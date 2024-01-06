@@ -15,14 +15,14 @@ let read_phrase () =
   in loop ""
 
 let frontend ~(inputs : string list) repl ?(when_repl=(fun _ -> ())) ?(relax=false) main str_arg : pi * e list =
-  let gss_from_files,dss_from_files =
-    List.map (fun path ->
+  let gss_from_files,tss_from_files,dss_from_files =
+    Prelude.map_split3 (fun path ->
                 let ic = open_in path in
                 begin try
                       Current_filename.current_file_name := path;
-                      let gs,ds = Parser.pi Lexer.token (Lexing.from_channel ic) in
+                      let gs,ts,ds = Parser.pi Lexer.token (Lexing.from_channel ic) in
                       close_in ic;
-                      gs,ds
+                      gs,ts,ds
                     with excp ->
                       close_in_noerr ic;
                       (match excp with
@@ -32,8 +32,9 @@ let frontend ~(inputs : string list) repl ?(when_repl=(fun _ -> ())) ?(relax=fal
                       | _ -> ());
                       raise excp
                 end
-               ) inputs |> List.split in
-  let gs_from_files,ds_from_files = List.concat gss_from_files, List.concat dss_from_files in
+               ) inputs in
+  let gs_from_files,ts_from_files, ds_from_files =
+    List.concat gss_from_files, List.concat tss_from_files, List.concat dss_from_files in
   let ds = (if repl || ds_from_files = [] then
             let () = List.iter when_repl ds_from_files in
             (Current_filename.current_file_name := "%stdin";
@@ -62,25 +63,27 @@ let frontend ~(inputs : string list) repl ?(when_repl=(fun _ -> ())) ?(relax=fal
             else ds_from_files) in
 
   let values_list =
+
     String.split_on_char ';' str_arg |>
     (function | [""] -> [] | l -> l) |>
-    List.map (fun s -> Parser.exp_eof Lexer.token (Lexing.from_string s))
+    List.mapi (fun i s ->
+        Current_filename.current_file_name := "%command-line-argument-"^string_of_int (i+1)^" (input: "^s^")";
+        Parser.exp_eof Lexer.token (Lexing.from_string s))
   in
   let entry_point = if relax then (E_var main) else (Ast.ty_annot ~ty:(Ast_mk.fresh_node ()) (E_var main)) in
   let ds = List.concat @@
-           List.map (function ((p,e),loc) -> 
-                       try Pattern.bindings p e |> SMap.bindings with 
+           List.map (function ((p,e),loc) ->
+                       try Pattern.bindings p e |> SMap.bindings with
                        | Pattern.CannotMatch _ ->
                            error ~loc (fun fmt ->
                                   Format.fprintf fmt
                                     "@[<v>This global pattern does not match statically the right-hand side.@]")) ds in
-  ({statics=gs_from_files;ds;main=entry_point}, values_list)
+  let main = List.fold_right (fun (x,v) e -> E_letIn(P_var x,v,e)) ds (let y = gensym () in E_fun (P_var y, E_app(entry_point,E_var y))) in
 
 
-(*
+  (*
 
-
-  (** check that given inputs are combinatorial *)
+  (** check that the given inputs are combinational *)
   List.iteri (fun i a ->
     if Combinatorial.combinatorial a then ()
     else error (fun fmt ->
@@ -88,5 +91,10 @@ let frontend ~(inputs : string list) repl ?(when_repl=(fun _ -> ())) ?(relax=fal
                     "@[<v>Input %d should be combinatorial, but I found:@,%a@,@]" i
                        (emph_pp purple Ast_pprint.pp_exp) a)) values_list;
 
+  *)
+
+
   (* return both parsed program and its inputs *)
-  (e,values_list) *)
+
+  ({statics=gs_from_files;sums=ts_from_files;main}, values_list)
+

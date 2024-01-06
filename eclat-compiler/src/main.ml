@@ -17,6 +17,8 @@ let top_flag = ref false
 let relax_flag = ref false
 let simul_flag = ref true
 
+let prop_fsm_flag = ref false
+
 let arguments = ref ""
 let top_wrapper = ref ""
 let clock_top = ref "clk"
@@ -24,7 +26,7 @@ let clock_top = ref "clk"
 let clock_top_intel_max10 = "MAX10_CLK1_50"
 
 let top_wrapper_intel_max10 =
-  "SW:10,KEY:2|LEDR:10,HEX5:8,HEX4:8,HEX3:8,HEX2:8,HEX1:8,HEX0:8"
+  "SW:10,KEY:2|LEDR:10,HEX0:8,HEX1:8,HEX2:8,HEX3:8,HEX4:8,HEX5:8"
 
 (* main configuration *)
 let () =
@@ -48,7 +50,6 @@ let () =
                   "specify a list of inputs (one at each clock tick)\
                   \ for interpretation of the source program or simulation\
                   \ of the generated VHDL code");
-
     ("-ast",      Arg.Set show_ast_and_exit_flag,
                  "print input program and exit.");
 
@@ -58,11 +59,14 @@ let () =
     ("-pp",      Arg.String Display_internal_steps.set_print_mode,
                  "display the output of the specified (intermediates)\
                  \ compilation pass specified.\n\tPossible values:\
-                 \ [front;ren;anf;float;lift;spec;inl;prop;match;middle-end].");
+                 \ [front;float;lift;spec;inl;prop;match;anf;middle-end].");
 
     ("-pp-fsm", Arg.String Display_target.set_print_mode,
                  "display the output of the specified (low-level)\
                  \ compilation pass.\n\tPossible values: [fsm;flat].");
+
+    ("-prop-fsm",Arg.Set prop_fsm_flag,
+                 "constant/copy progragation on the generated code");
 
     ("-hexa",    Arg.Set Ast_pprint.hexa_int_pp_flag,
                  "printer using hexadecimal");
@@ -84,11 +88,23 @@ let () =
                 "name of the top wrapper global clock");
 
     ("-intel-max10", Arg.Unit (fun () ->
-                                 Gen_vhdl.intel_ram_inference := true;
+                                 Operators.flag_no_assert := true;
+                                 Operators.flag_no_print := true;
+                                 Gen_vhdl.ram_inference := true;
+                                 Gen_vhdl.intel_max10_target := true;
                                  clock_top := clock_top_intel_max10;
                                  top_wrapper := top_wrapper_intel_max10),
-     "alias for: -clk-top "^clock_top_intel_max10^" -top "^top_wrapper_intel_max10);
+     "synthesis for Intel MAX 10 FPGA");
 
+    ("-yosys-ecp5", Arg.Unit (fun () ->
+                                 Operators.flag_no_assert := true;
+                                 Operators.flag_no_print := true;
+                                 Gen_vhdl.ram_inference := true;
+                                 clock_top := "clk48"),
+     "synthesis for Intel MAX 10 FPGA");
+
+    ("-i", Arg.Set Typing.flag_print_signature,
+     "Print inferred interface");
     ("-no-prop-linear", Arg.Clear Propagation.flag_propagate_combinational_linear,
                  "do not propagate linear combinational expression.");
     ]
@@ -139,6 +155,11 @@ let main () : unit =
       exit 0
   end;
 
+  let vhdl_comment = "-- code generated from the following source code:\n--   " ^ 
+                   String.concat "\n--   " !inputs ^
+                   "\n--\n-- with the following command:\n--\n--    " ^ 
+                   (String.concat " " @@ List.of_seq @@ Array.to_seq Sys.argv) ^ "\n" in
+
   (** standard compilation mode *)
 
   let name = "main" in
@@ -147,10 +168,10 @@ let main () : unit =
   let oc_tb = open_out (!target^"/tb_"^name^".vhdl") in
   let fmt_vhdl = Format.formatter_of_out_channel oc_vhdl in
   let fmt_tb = Format.formatter_of_out_channel oc_tb in
-  let (argument,result,typing_env) = Compile.compile name ty fmt_vhdl pi in
-  let args = (List.map Fsm_comp.to_a arg_list) in
+  let (argument,result,typing_env) = Compile.compile ~vhdl_comment ~prop_fsm:!prop_fsm_flag arg_list name ty fmt_vhdl pi in
+  let args = List.map (Fsm_comp.to_a ~sums:pi.sums) arg_list in
 
-  Gen_testbench.gen_testbench fmt_tb typing_env name ty (argument,result) args;
+  Gen_testbench.gen_testbench fmt_tb ~vhdl_comment typing_env name ty (argument,result) args;
 
   Format.fprintf Format.std_formatter
       "\nvhdl code generated in %s/main.vhdl\
@@ -160,12 +181,13 @@ let main () : unit =
   close_out oc_tb ;
 
 
-  if !top_wrapper <> "" then
-    Make_top.gen_wrapper ~argument
-                         ~result
-                         ~clock:!clock_top
-                         ~dst:(!target^"/top.vhdl") !top_wrapper
-
+  if !top_wrapper <> "" then (
+    Gen_top.gen_wrapper ~vhdl_comment
+                        ~argument
+                        ~result
+                        ~clock:!clock_top
+                        ~dst:(!target^"/top.vhdl") !top_wrapper
+)
 
 ;;
 

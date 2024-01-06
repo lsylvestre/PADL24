@@ -4,87 +4,111 @@ CAMLDEP=ocamldep
 
 EXE=eclat
 
-FLAGS=
+CAML_FLAGS=
 
-INCLUDES=-I src -I src/syntax \
-         -I src/frontend \
-         -I src/typing \
-         -I src/interp \
-         -I src/compile \
-         -I src/compile/middle_end \
-         -I src/compile/inspect \
-         -I src/compile/backend \
-         -I src/target \
-         -I src/compile/test
+SRC_DIR=src
+
+INCLUDES=-I $(SRC_DIR) -I $(SRC_DIR)/syntax \
+         -I $(SRC_DIR)/frontend \
+         -I $(SRC_DIR)/typing \
+         -I $(SRC_DIR)/interp \
+         -I $(SRC_DIR)/compile \
+         -I $(SRC_DIR)/compile/middle_end \
+         -I $(SRC_DIR)/compile/middle_end/optim \
+         -I $(SRC_DIR)/compile/middle_end/transform \
+         -I $(SRC_DIR)/compile/middle_end/normalize \
+         -I $(SRC_DIR)/compile/inspect \
+         -I $(SRC_DIR)/compile/backend \
+         -I $(SRC_DIR)/compile/backend/optim \
+         -I $(SRC_DIR)/compile/backend/target \
+         -I $(SRC_DIR)/compile/gen_top \
+         -I $(SRC_DIR)/compile/gen_testbench
 
 MENHIR=menhir --unused-tokens --unused-precedence-levels --infer --ocamlc "$(CAMLC) -i $(INCLUDES)"
 
-OBJS= src/prelude.cmo \
-      src/typing/types.cmo \
-      src/operators.cmo \
-      src/syntax/ast.cmo \
-      src/syntax/pattern.cmo \
-      src/syntax/map_pi.cmo \
-      src/syntax/ast_mapper.cmo \
-      src/syntax/ast_pprint.cmo \
-      src/syntax/ast_subst.cmo \
-      src/syntax/ast_rename.cmo \
-      src/syntax/free_vars.cmo \
-      src/syntax/ast_ensure_rec_naming.cmo \
-      src/syntax/ast_undecorated.cmo \
-      src/frontend/fix_int_lit_size.cmo \
-      src/compile/combinatorial.cmo \
-      src/typing/typing.cmo \
-      src/syntax/ast_mk.cmo \
-      src/compile/encode_reg_exec.cmo \
-      src/compile/middle_end/name_anonymus_functions.cmo \
-      src/compile/middle_end/anf.cmo \
-      src/compile/middle_end/let_floating.cmo \
-      src/compile/middle_end/lambda_lifting.cmo \
-      src/compile/middle_end/inline.cmo \
-      src/compile/middle_end/propagation.cmo \
-      src/compile/middle_end/instantiate.cmo \
-      src/compile/middle_end/specialize.cmo \
-      src/compile/middle_end/fun_shape_entry_point.cmo \
-      src/compile/middle_end/rename_main_arg.cmo \
-      src/compile/middle_end/move_down_gfun_under_register.cmo \
-      src/compile/middle_end/deadcode_elimination.cmo \
-      src/compile/middle_end/matching.cmo \
-      src/compile/middle_end/propagate_global_constant.cmo \
-      src/target/naming_convention.cmo \
-      src/compile/inspect/display_internal_steps.cmo \
-      src/compile/middle_end.cmo \
-      src/target/fsm_syntax.cmo \
-      src/compile/inspect/display_target.cmo \
-      src/target/fsm_typing.cmo \
-      src/compile/backend/fsm_comp.cmo \
-      src/compile/backend/flat_let_atom.cmo \
-      src/compile/backend/list_machines.cmo \
-      src/target/gen_vhdl.cmo \
-      src/compile/compile.cmo \
-      src/compile/test/gen_testbench.cmo\
-      src/interp/norm.cmo \
-      src/interp/interp.cmo \
-      src/frontend/current_filename.cmo \
-      src/frontend/parser.cmo \
-      src/frontend/lexer.cmo \
-      src/frontend/frontend.cmo \
-      src/frontend/clean_simul.ml \
-      src/target/make_top.cmo \
-      src/main.cmo
+OBJS= $(SRC_DIR)/prelude.cmo \
+      \
+      $(SRC_DIR)/frontend/current_filename.cmo \
+      \
+      $(SRC_DIR)/typing/types.cmo \
+      $(SRC_DIR)/operators.cmo \
+      $(SRC_DIR)/syntax/ast.cmo \
+      $(SRC_DIR)/syntax/pattern.cmo \
+      $(SRC_DIR)/syntax/map_pi.cmo \
+      $(SRC_DIR)/syntax/ast_mapper.cmo \
+      $(SRC_DIR)/syntax/ast_pprint.cmo \
+      $(SRC_DIR)/syntax/ast_subst.cmo \
+      $(SRC_DIR)/syntax/ast_rename.cmo \
+      $(SRC_DIR)/syntax/free_vars.cmo \
+      $(SRC_DIR)/syntax/rename_fix.cmo \
+      $(SRC_DIR)/syntax/ast_undecorated.cmo \
+      \
+      $(SRC_DIR)/frontend/fix_int_lit_size.cmo \
+      \
+      $(SRC_DIR)/compile/combinational.cmo \
+      $(SRC_DIR)/typing/typing.cmo \
+      $(SRC_DIR)/syntax/ast_mk.cmo \
+      $(SRC_DIR)/compile/middle_end/normalize/fun_assign_name.cmo \
+      \
+      $(SRC_DIR)/compile/middle_end/optim/propagation.cmo \
+      \
+      $(SRC_DIR)/compile/middle_end/normalize/anf.cmo \
+      \
+      $(SRC_DIR)/compile/middle_end/transform/let_floating.cmo \
+      $(SRC_DIR)/compile/middle_end/transform/specialize.cmo \
+      $(SRC_DIR)/compile/middle_end/transform/lambda_lifting.cmo \
+      $(SRC_DIR)/compile/middle_end/transform/inline.cmo \
+      $(SRC_DIR)/compile/middle_end/transform/matching.cmo \
+      \
+      $(SRC_DIR)/compile/middle_end/normalize/move_down_gfun_under_exec_and_par.cmo \
+      $(SRC_DIR)/compile/middle_end/normalize/instantiate.cmo \
+      \
+      $(SRC_DIR)/compile/middle_end/normalize/fun_shape_entry_point.cmo \
+      $(SRC_DIR)/compile/middle_end/rename_main_arg.cmo \
+      $(SRC_DIR)/compile/backend/naming_convention.cmo \
+      $(SRC_DIR)/compile/inspect/display_internal_steps.cmo \
+      $(SRC_DIR)/compile/middle_end/middle_end.cmo \
+      \
+      $(SRC_DIR)/compile/backend/target/fsm_syntax.cmo \
+      $(SRC_DIR)/compile/inspect/display_target.cmo \
+      $(SRC_DIR)/compile/backend/target/fsm_typing.cmo \
+      $(SRC_DIR)/compile/backend/fsm_comp.cmo \
+      \
+      $(SRC_DIR)/compile/backend/flat_let_atom.cmo \
+      $(SRC_DIR)/compile/backend/list_machines.cmo \
+      \
+      $(SRC_DIR)/compile/backend/optim/target_propagation.cmo \
+      $(SRC_DIR)/compile/backend/optim/remove_assigned_but_not_read_vars.cmo \
+      \
+      $(SRC_DIR)/compile/backend/gen_vhdl.cmo \
+      \
+      $(SRC_DIR)/compile/compile.cmo \
+      $(SRC_DIR)/compile/gen_testbench/gen_testbench.cmo\
+      \
+      $(SRC_DIR)/interp/norm.cmo \
+      $(SRC_DIR)/interp/interp.cmo \
+      \
+      $(SRC_DIR)/frontend/parser.cmo \
+      $(SRC_DIR)/frontend/lexer.cmo \
+      $(SRC_DIR)/frontend/frontend.cmo \
+      $(SRC_DIR)/frontend/clean_simul.ml \
+      $(SRC_DIR)/compile/gen_top/gen_top.cmo \
+      \
+      $(SRC_DIR)/main.cmo
 
-SRCS= `find src -name "*.ml*"`
 
-all:	depend src/frontend/parser.cmi $(OBJS)
-	$(CAMLC) $(FLAGS) $(INCLUDES) -o $(EXE) $(OBJS)
+SRCS= `find $(SRC_DIR) -name "*.ml*"`
+
+all:	depend $(SRC_DIR)/frontend/parser.cmi $(OBJS)
+	$(CAMLC) $(CAML_FLAGS) $(INCLUDES) -o $(EXE) $(OBJS)
 
 .SUFFIXES: .mll .mly .ml .mli .cmo .cmi
 
 .ml.cmo:
-	$(CAMLC) $(INCLUDES) $(FLAGS) -c $<
+	$(CAMLC) $(INCLUDES) $(CAML_FLAGS) -c $<
 
 .mli.cmi:
-	$(CAMLC) $(INCLUDES) $(FLAGS) -c $<
+	$(CAMLC) $(INCLUDES) $(CAML_FLAGS) -c $<
 
 .mly.ml:
 	$(MENHIR) $<
@@ -93,10 +117,10 @@ all:	depend src/frontend/parser.cmi $(OBJS)
 	$(CAMLLEX) $<
 
 depend:
-	$(CAMLDEP) $(INCLUDES) $(SRCS) > src/.depend
-	menhir --depend src/frontend/parser.mly >> src/.depend
+	$(CAMLDEP) $(INCLUDES) $(SRCS) > $(SRC_DIR)/.depend
+	menhir --depend $(SRC_DIR)/frontend/parser.mly >> $(SRC_DIR)/.depend
 
-include src/.depend
+include $(SRC_DIR)/.depend
 
 NS=2000
 

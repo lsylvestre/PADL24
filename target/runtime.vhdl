@@ -4,58 +4,58 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 package runtime is
-    alias value is std_logic_vector;
-    constant eclat_true : value(0 to 0) := "1";
-    constant eclat_false : value(0 to 0)  := "0";
-    constant eclat_unit : value(0 to 0)  := "1";
-    procedure eclat_skip (arg : in value);
-    function eclat_abs  (arg: value)  return value;
-    function eclat_add  (arg: value)  return value;
-    function eclat_sub  (arg: value)  return value;
-    function eclat_neg  (arg: value)  return value;
-    function eclat_mult (arg: value)  return value;
-    function eclat_div  (arg: value)  return value;
-    function eclat_mod  (arg: value)  return value;
-    function eclat_eq   (arg: value)  return value;
-    function eclat_neq  (arg: value)  return value;
-    function eclat_lt   (arg: value)  return value;
-    function eclat_gt   (arg: value)  return value;
-    function eclat_le   (arg: value)  return value;
-    function eclat_ge   (arg: value)  return value;
-    function eclat_if   (arg : value) return value;
-    function eclat_and  (arg : value) return value;
-    function eclat_or   (arg : value) return value;
-    function eclat_xor  (arg : value) return value;
-    function eclat_not  (arg : value) return value;
-    function eclat_id   (arg : value) return value;
-    function eclat_lor  (arg : value) return value;
-    function eclat_land (arg : value) return value;
-    function eclat_lxor (arg : value) return value;
-    function eclat_lsl (arg: value) return value;
-    function eclat_lsr (arg: value) return value;
-    function eclat_asr (arg: value) return value;
-    -- -- todo add eclat_asr
-    function of_string (s: string)   return value; 
-    function to_string (a: std_logic_vector) return string;
+  alias value is std_logic_vector;
+  constant eclat_true : value(0 to 0) := "1";
+  constant eclat_false : value(0 to 0)  := "0";
+  constant eclat_unit : value(0 to 0)  := "1";
+  procedure eclat_skip (arg : in value);
+  function eclat_abs   (arg: value)  return value;
+  function eclat_add   (arg: value)  return value;
+  function eclat_sub   (arg: value)  return value;
+  function eclat_neg   (arg: value)  return value;
+  function eclat_mult  (arg: value)  return value;
+  function eclat_div   (arg: value)  return value;
+  function eclat_mod   (arg: value)  return value;
+  function eclat_eq    (arg: value)  return value;
+  function eclat_neq   (arg: value)  return value;
+  function eclat_lt    (arg: value)  return value;
+  function eclat_gt    (arg: value)  return value;
+  function eclat_le    (arg: value)  return value;
+  function eclat_ge    (arg: value)  return value;
+  function eclat_if    (arg : value) return value;
+  function eclat_and   (arg : value) return value;
+  function eclat_or    (arg : value) return value;
+  function eclat_xor   (arg : value) return value;
+  function eclat_not   (arg : value) return value;
+  function eclat_id    (arg : value) return value;
+  function eclat_lor   (arg : value) return value;
+  function eclat_land  (arg : value) return value;
+  function eclat_lxor  (arg : value) return value;
+  function eclat_lsl   (arg: value) return value;
+  function eclat_lsr   (arg: value) return value;
+  function eclat_asr   (arg: value) return value;
+  function of_string   (s: string)   return value; 
+  function to_string   (a: std_logic_vector) return string;
 
-    function integer_of_value(arg: value) return integer; 
-    function eclat_compute_address(caml_heap_base:value;a:value) return value;
-    
-    function eclat_string_length(arg:value) return value;
-    function eclat_resize(arg:value; k:integer) return value;
+  function integer_of_value (arg: value) return integer; 
+  function eclat_compute_address (caml_heap_base:value;a:value) return value;
+  
+  function eclat_string_length (arg:value) return value;
+  function eclat_resize (arg:value; k:integer) return value;
 
-    procedure default_zero (xvar: out value);
-    procedure eclat_print(arg:value);
-    procedure eclat_print_string(arg:value);
-    procedure eclat_print_int(arg:value);
-    procedure eclat_print_newline(arg:value);
+  procedure default_zero (xvar: out value);
+  procedure eclat_print (arg:value);
+  procedure eclat_print_string (arg:value);
+  procedure eclat_print_int (arg:value);
+  procedure eclat_print_newline (arg:value);
 end package;
+
 
 package body runtime is
 
-    procedure eclat_skip (arg : in value) is
-      begin
-      end procedure;
+  procedure eclat_skip (arg : in value) is
+    begin
+    end procedure;
 
   procedure echo (arg : in string) is
     begin
@@ -287,7 +287,7 @@ package body runtime is
       end loop;
       return value(r);
     end;
-  
+
   function eclat_lxor (arg: value) return value is
     constant length: natural := arg'length / 2;
     variable r : signed (0 to length - 1);
@@ -320,16 +320,7 @@ package body runtime is
     constant n : integer range 0 to length - 1 := integer_of_value(arg(length to arg'length - 1));
     variable sign : std_logic;
     begin
-      r := unsigned(arg(0 to length-1)) srl n;
-      --
-      -- TODO
-      --
-      -- --sign := arg(0);
-      --for i in 0 to arg'length - 1 loop -- not yet tested
-      --  if i > n then
-      --    r(i) := sign;
-      --  end if;
-      --end loop;
+      r := unsigned(arg(0 to length-1)) srl n; -- todo: check if is ok
       return value(r);
     end;
 
@@ -338,73 +329,73 @@ package body runtime is
       return arg;
     end;
 
-    function integer_of_value(arg: value) return integer is
-      variable r : unsigned (0 to arg'length - 1);
-    begin 
-       r := unsigned(arg);
-       return to_integer(r);
+  function integer_of_value(arg: value) return integer is
+    variable r : unsigned (0 to arg'length - 1);
+  begin 
+     r := unsigned(arg);
+     return to_integer(r);
+  end function;
+
+  function eclat_compute_address(caml_heap_base:value;a:value) return value is
+    begin
+      return value(signed(caml_heap_base) + signed(a(0 to 31)) + (signed(a(32 to 63)) * 4));
     end function;
 
-    function eclat_compute_address(caml_heap_base:value;a:value) return value is
-      begin
-        return value(signed(caml_heap_base) + signed(a(0 to 31)) + (signed(a(32 to 63)) * 4));
-      end function;
-
-    function eclat_string_length(arg:value) return value is
-      begin
-        return std_logic_vector(to_signed(arg'length / 8,16));
-      end;
-
-    function eclat_resize(arg:value; k:integer) return value is
-      begin
-         return std_logic_vector(resize(unsigned(arg),k));
-      end;
-
-    procedure default_zero (xvar: out value) is
+  function eclat_string_length(arg:value) return value is
     begin
-      for i in 0 to xvar'length - 1 loop
-        xvar(0) := '0';
+      return std_logic_vector(to_signed(arg'length / 8,16));
+    end;
+
+  function eclat_resize(arg:value; k:integer) return value is
+    begin
+       return std_logic_vector(resize(unsigned(arg),k));
+    end;
+
+  procedure default_zero (xvar: out value) is
+  begin
+    for i in 0 to xvar'length - 1 loop
+      xvar(0) := '0';
+    end loop;
+  end procedure;
+
+  procedure eclat_print(arg:value) is
+    begin
+      echo(to_string(arg));
+    end procedure;
+  
+  function char_of_value(arg : value(0 to 7)) return character is
+  -- from https://groups.google.com/g/comp.lang.vhdl/c/_kI2ZwxVVVk
+  constant xmap :integer :=0;
+  variable TEMP :integer :=0;
+  begin
+    for i in arg'range loop
+      temp:=temp*2;
+      case arg(i) is
+        when '0' | 'L' => null;
+        when '1' | 'H' => temp :=temp+1;
+        when others => temp :=temp+xmap;
+      end case;
+    end loop;
+    return character'val(temp);
+  end function;
+
+  procedure eclat_print_string(arg:value) is
+    variable s : string (0 to arg'length / 8);
+    begin
+      for i in 0 to s'length-2 loop
+          s(i) := char_of_value(arg(i*8 to i*8+7));
       end loop;
+      echo(s);
     end procedure;
 
-    procedure eclat_print(arg:value) is
-      begin
-        echo(to_string(arg));
-      end procedure;
-    
-    function char_of_value(arg : value(0 to 7)) return character is
-    -- from https://groups.google.com/g/comp.lang.vhdl/c/_kI2ZwxVVVk
-    constant xmap :integer :=0;
-    variable TEMP :integer :=0;
+  procedure eclat_print_int(arg:value) is
     begin
-      for i in arg'range loop
-        temp:=temp*2;
-        case arg(i) is
-          when '0' | 'L' => null;
-          when '1' | 'H' => temp :=temp+1;
-          when others => temp :=temp+xmap;
-        end case;
-      end loop;
-      return character'val(temp);
-    end function;
+       echo(integer'image(to_integer(signed(arg))));
+    end procedure;
 
-    procedure eclat_print_string(arg:value) is
-      variable s : string (0 to arg'length / 8);
-      begin
-        for i in 0 to s'length-2 loop
-            s(i) := char_of_value(arg(i*8 to i*8+7));
-        end loop;
-        echo(s);
-      end procedure;
-
-    procedure eclat_print_int(arg:value) is
-      begin
-         echo(integer'image(to_integer(signed(arg))));
-      end procedure;
-
-    procedure eclat_print_newline(arg:value) is
-      begin
-          echo(" " &LF);
-      end procedure;
+  procedure eclat_print_newline(arg:value) is
+    begin
+        echo(" " &LF);
+    end procedure;
 
 end runtime;

@@ -4,7 +4,7 @@
 
    $ cd eclat-compiler
    $ make
-   $ ./eclat ../examples/collatz.ecl -arg="11" -relax
+   $ ./eclat ../examples/collatz.ecl -main=collatz -arg="6" -relax
 
   (option -arg is used for simulation only and ignored for synthesis)
 
@@ -15,11 +15,13 @@
 
 
 
-let rec collatz(n) =
-    if n = 1 then 1 else
-    if n mod 2 = 0 then collatz(n/2)
-    else collatz(3*n+1) ;;
+let collatz(n) =
+  let rec loop(n,t) =
+    if n = 1 then t else
+    if n mod 2 = 0 then loop(n/2,t+1)
+    else loop(3*n+1,t+1)
+  in loop(n,0) ;;
 
 let main(n) =
-  let x = collatz n
-  and y = collatz (n+1) in (x,y) ;;
+  let x = collatz n in 
+  collatz(x) ;;

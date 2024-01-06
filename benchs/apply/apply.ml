@@ -14,4 +14,4 @@ let nb_times = 1 ;; (* nb_times=1 is for RTL simulation on PC,
 
 for i = 1 to nb_times do
   print_int (double oct succ 1)
-done ;; 
+done ;;

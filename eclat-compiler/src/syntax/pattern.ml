@@ -13,13 +13,13 @@ let pat_mem (x:x) (p:p) : bool =
 
 (* [vars_of_p p] returns the (free) variables used in the pattern [p] *)
 let rec vars_of_p (p:p) : unit smap =
-  match p with 
+  match p with
   | P_unit -> SMap.empty
   | P_var x -> SMap.singleton x ()
   | P_tuple ps ->
     List.fold_left (fun m p -> vars_of_p p ++ m) SMap.empty ps
 
-(* static expressions, i.e., a constant, a variable, 
+(* static expressions, i.e., a constant, a variable,
    or the static projection of a tuple expression *)
 let rec static (e:e) : bool =
   let static_aux e =
@@ -31,8 +31,8 @@ let rec static (e:e) : bool =
 
 exception CannotMatch of p * e
 
-(* [bindings p e] matches expression [e] with pattern [p] 
-   and returns the resulting bindings (variable x value). 
+(* [bindings p e] matches expression [e] with pattern [p]
+   and returns the resulting bindings (variable x value).
    Raises [CannotMatch(p,e)] if [e] cannot be matched with [p]. *)
 let rec bindings (p:p) (e:e) : e smap =
   match p,e with
@@ -47,9 +47,9 @@ let rec bindings (p:p) (e:e) : e smap =
     List.fold_left2 (fun m p v -> bindings p v ++ m) SMap.empty ps es
   | P_tuple ps,e when static e ->
       let n = List.length ps in
-      let rs = List.mapi (fun i p -> 
+      let rs = List.mapi (fun i p ->
                   bindings p (E_app (E_const (Op (GetTuple {pos=i;arity=n})),e))
-                ) ps 
+                ) ps
       in
       List.fold_right (++) rs  SMap.empty
   | _ ->
@@ -68,7 +68,7 @@ let rec pat2exp (p:p) : e =
 exception Not_a_pattern
 
 (** [exp2pat e] converts the expression [e] into a pattern.
-    Raises [Not_a_pattern] if the expression [e] cannot 
+    Raises [Not_a_pattern] if the expression [e] cannot
     be converted into a pattern *)
 let rec exp2pat (e:e) : p =
   match e with
@@ -79,4 +79,3 @@ let rec exp2pat (e:e) : p =
   | E_tuple ps ->
       P_tuple (List.map exp2pat ps)
   | _ -> raise Not_a_pattern
-

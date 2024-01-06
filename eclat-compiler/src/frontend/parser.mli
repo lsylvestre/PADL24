@@ -5,6 +5,7 @@ type token =
   | XOR
   | WITH
   | VAR
+  | UP_IDENT of (string)
   | TYPE
   | TVAR_IDENT of (string)
   | TUPLE_OF_INT
@@ -28,6 +29,7 @@ type token =
   | PIPE_COMMA_PIPE
   | PIPE
   | OR
+  | OF
   | NOT
   | NODE
   | NEQ
@@ -81,7 +83,8 @@ exception Error
 
 (* The monolithic API. *)
 
-val pi: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> ((Ast.x * Ast.static) list * ((Ast.p * Ast.e) * Prelude.loc) list)
+val pi: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> ((Ast.x * Ast.static) list * (Ast.x * (Ast.x * Types.ty) list) list *
+  ((Ast.p * Ast.e) * Prelude.loc) list)
 
 val exp_eof: (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (Ast.e)
 
